@@ -1,0 +1,201 @@
+// ==========================================
+// CONFIGURACIÓN DEL CLIENTE Y CONEXIÓN
+// ==========================================
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters", "multiSchema"] // Soporte para adaptadores de pg y múltiples esquemas
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["public", "SIMA026"] // Habilita el acceso al esquema predeterminado y al esquema externo SIMA026
+}
+
+// ==========================================
+// MÓDULO DE USUARIOS Y AUTENTICACIÓN (WebAuthn)
+// ==========================================
+model User {
+  id           Int       @id @default(autoincrement()) // Identificador único del usuario
+  username     String? // Nombre completo del usuario 
+  name         String? // Nombre completo del usuario
+  cedula       String?   @unique // Cedula único para inicio de sesión
+  email        String?   @unique // Correo electrónico único para inicio de sesión
+  password     String // Contraseña encriptada (Hash con bcrypt)
+  tokenVersion Int       @default(1)
+  lastActive   DateTime? // Marca de tiempo de la última actividad registrada
+
+  roleId Int? // Identificador del rol asignado
+  role   Role? @relation(fields: [roleId], references: [id]) // Relación con la tabla de roles
+
+  currentChallenge    String? // Reto temporal (challenge) para autenticación WebAuthn/Passkey
+  credentialId        String? @unique // Identificador único de la llave física o dispositivo biométrico
+  credentialPublicKey Bytes? // Clave pública criptográfica asociada al dispositivo WebAuthn
+  counter             BigInt  @default(0) // Contador de uso para prevenir ataques de clonación/replay en WebAuthn
+
+  @@schema("public")
+}
+
+// ==========================================
+// MÓDULO DE ROLES
+// ==========================================
+model Role {
+  id          Int     @id @default(autoincrement()) // Identificador único del rol
+  name        String  @unique // Nombre único del rol (ej. ADMIN, USER)
+  description String? // Descripción detallada de las responsabilidades del rol
+
+  users       User[] // Lista de usuarios asociados a este rol
+  permissions Permission[] // Lista de permisos asignados a este rol
+
+  @@schema("public")
+}
+
+// ==========================================
+// MÓDULO DE PERMISOS
+// ==========================================
+model Permission {
+  id          Int     @id @default(autoincrement()) // Identificador único del permiso
+  name        String  @unique // Nombre técnico del permiso (ej. "users:read")
+  description String? // Descripción de la acción permitida en el sistema
+
+  roles Role[] // Roles que poseen este permiso
+
+  @@schema("public")
+}
+
+// ==========================================
+// MÓDULO DE AUDITORÍA Y REGISTRO DE EVENTOS
+// ==========================================
+model AuditLog {
+  id        Int      @id @default(autoincrement()) // Identificador único del registro de auditoría
+  userId    Int? // ID del usuario que realizó la acción (opcional si es anónimo)
+  userName  String? // Nombre del usuario al momento de la acción para respaldo histórico
+  action    String // Tipo de acción ejecutada (ej. CREATE, UPDATE, DELETE, LOGIN)
+  module    String // Módulo o sección del sistema donde ocurrió el evento
+  details   String? // Información adicional, parámetros o cambios realizados
+  ipAddress String? // Dirección IP desde la cual se originó la solicitud
+  userAgent String? // Información del navegador o cliente HTTP utilizado
+  createdAt DateTime @default(now()) // Fecha y hora exacta en que se registró el evento
+
+  @@schema("public")
+}
+
+model ConfiguracionPortal {
+  clave         String   @id @unique
+  valor         String   @db.Text
+  actualizadoAt DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model HeroSlide {
+  id            Int      @id @default(autoincrement())
+  imagenUrl     String
+  lema          String?
+  titulo        String?
+  subtitulo     String?
+  orden         Int      @default(0)
+  activo        Boolean  @default(true)
+  creadoAt      DateTime @default(now())
+  actualizadoAt DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model Programa {
+  id            Int      @id @default(autoincrement())
+  titulo        String
+  resumen       String   @db.Text
+  contenido     String?  @db.Text // Contenido detallado del programa/noticia
+  fecha         String
+  imagenUrl     String
+  enlaceUrl     String?
+  orden         Int      @default(0)
+  activo        Boolean  @default(true)
+  creadoAt      DateTime @default(now())
+  actualizadoAt DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model PrensaVideo {
+  id            Int      @id @default(autoincrement())
+  titulo        String
+  descripcion   String?  @db.Text
+  videoUrl      String // URL de YouTube (ej: https://www.youtube.com/watch?v=...) o archivo local/embed
+  fecha         String // Ej: "23 sep. 2026"
+  activo        Boolean  @default(true)
+  orden         Int      @default(0)
+  creadoAt      DateTime @default(now())
+  actualizadoAt DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model ContactoItem {
+  id            Int      @id @default(autoincrement())
+  tipo          String // Ej: "DISCURSO", "DOCUMENTO", "TRÍPTICO", "REVISTA"
+  titulo        String // Título principal
+  contenido     String   @db.Text // Información descriptiva o contenido que hace referencia al título
+  orden         Int      @default(0)
+  activo        Boolean  @default(true)
+  creadoAt      DateTime @default(now())
+  actualizadoAt DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model BannerLateralConfig {
+  id            Int      @id @default(1)
+  imagenUrl     String   @default("/images/silueta-madre.png")
+  altTexto      String   @default("Ilustración Institucional")
+  enlaceUrl     String? // Opcional por si se desea hacer clic y redirigir
+  visible       Boolean  @default(true)
+  actualizadoAt DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model FooterConfig {
+  id             Int      @id @default(1)
+  imagenUrl      String   @default("/images/cintillo-footer.png")
+  altTexto       String   @default("Cintillo Institucional")
+  direccion      String   @default("Av. Andrés Bello, Edificio Las Fundaciones, Caracas - Venezuela")
+  rif            String   @default("G-20002451-8")
+  textoCopyright String   @default("Fundación Propatria 2000 / FUNDAPROAL. Todos los derechos reservados.")
+  visible        Boolean  @default(true)
+  actualizadoAt  DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model SedeMapa {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  direccion     String?  @db.Text
+  lat           Float // Latitud (ej: 10.5060)
+  lng           Float // Longitud (ej: -66.9146)
+  activo        Boolean  @default(true)
+  orden         Int      @default(0)
+  creadoAt      DateTime @default(now())
+  actualizadoAt DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model RevistaConfig {
+  id            Int      @id @default(autoincrement())
+  titulo        String   @default("Revista Institucional")
+  subtitulo     String?  @default("Edición Digital")
+  descripcion   String?  @db.Text
+  fecha         String?  // Ej: "Octubre 2026"
+  archivoUrl    String?  // Ej: "/uploads/revista/revista-edicion-12.pdf"
+  nombreArchivo String?  // Ej: "Revista_Edicion_12.pdf"
+  tamanoArchivo String?  // Ej: "4.5 MB"
+  portadaUrl    String?  // Ej: "/uploads/revista/portada-12.jpg"
+  orden         Int      @default(0)
+  habilitado    Boolean  @default(true)
+  actualizadoAt DateTime @updatedAt
+  creadoAt      DateTime @default(now())
+
+  @@schema("public")
+}
