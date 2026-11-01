@@ -2,8 +2,7 @@
 // CONFIGURACIÓN DEL CLIENTE Y CONEXIÓN
 // ==========================================
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters", "multiSchema"] // Soporte para adaptadores de pg y múltiples esquemas
+  provider = "prisma-client-js"
 }
 
 datasource db {
