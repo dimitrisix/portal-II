@@ -1,11 +1,10 @@
 // Ubicación: src/app/login/page.tsx
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState } from "react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
 import { processLogin, LoginState } from "./actions";
 
 function SubmitButton() {
@@ -23,15 +22,30 @@ function SubmitButton() {
 }
 
 function LoginFormContent() {
-  const searchParams = useSearchParams();
-  const motivoInactividad = searchParams.get("motivo") === "inactividad";
-
+  const [motivoInactividad, setMotivoInactividad] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [biometricError, setBiometricError] = useState("");
 
   const initialState: LoginState = {};
   const [state, formAction] = useActionState(processLogin, initialState);
+
+  // Leer motivo de inactividad directamente en cliente sin useSearchParams (evita Suspense y baches SSR)
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("motivo") === "inactividad") {
+          const timer = setTimeout(() => {
+            setMotivoInactividad(true);
+          }, 0);
+          return () => clearTimeout(timer);
+        }
+      }
+    } catch {
+      // Ignorar si el navegador restringe window.location
+    }
+  }, []);
 
   // 1. Redirección limpia al dashboard tras autenticación exitosa
   useEffect(() => {
@@ -42,16 +56,20 @@ function LoginFormContent() {
 
   // 2. Trampa de historial: bloquea el botón "Atrás" del navegador y mantiene al usuario en /login
   useEffect(() => {
-    window.history.pushState(null, "", window.location.href);
-
-    const handlePopState = () => {
+    try {
       window.history.pushState(null, "", window.location.href);
-    };
 
-    window.addEventListener("popstate", handlePopState);
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
+      const handlePopState = () => {
+        window.history.pushState(null, "", window.location.href);
+      };
+
+      window.addEventListener("popstate", handlePopState);
+      return () => {
+        window.removeEventListener("popstate", handlePopState);
+      };
+    } catch {
+      // Ignorar si el navegador bloquea manipulación de historial
+    }
   }, []);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -307,14 +325,8 @@ export default function LoginPage() {
       <div className="absolute bottom-6 left-1/2 translate-x-27.5 w-56 h-72 border-2 border-dashed border-[#7367f0]/20 rounded-3xl z-0 pointer-events-none hidden md:block" />
       <div className="absolute bottom-12 left-1/2 translate-x-32.5 w-48 h-64 bg-[#7367f0]/5 rounded-3xl z-0 pointer-events-none hidden md:block" />
 
-      {/* Envoltorio Suspense para compatibilidad con Turbopack */}
-      <Suspense
-        fallback={
-          <div className="w-full max-w-112.5 h-130 bg-white rounded-xl shadow-sm animate-pulse" />
-        }
-      >
-        <LoginFormContent />
-      </Suspense>
+      {/* Render directo de LoginFormContent para garantizar que el formulario esté en el HTML SSR inicial sin baches en blanco */}
+      <LoginFormContent />
     </div>
   );
 }

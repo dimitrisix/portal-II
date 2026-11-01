@@ -42,29 +42,29 @@ const securityHeaders = [
     key: "X-XSS-Protection",
     value: "0",
   },
-  // 9. Aislamiento de contexto de navegación contra Spectre y fuga de ventanas (COOP)
+  // 9. Aislamiento de contexto de navegación compatible con popups y redirecciones
   {
     key: "Cross-Origin-Opener-Policy",
-    value: "same-origin",
+    value: "same-origin-allow-popups",
   },
-  // 10. Bloqueo de lectura cruzada de recursos no autorizados (CORP)
+  // 10. Bloqueo de lectura cruzada de recursos no autorizados (CORP same-site para compatibilidad con subdominios institucionales)
   {
     key: "Cross-Origin-Resource-Policy",
-    value: "same-origin",
+    value: "same-site",
   },
-  // 11. Content Security Policy (CSP): Delimita las fuentes legítimas de recursos permitiendo visores PDF
+  // 11. Content Security Policy (CSP): Delimita las fuentes legítimas de recursos permitiendo visores PDF y subdominios institucionales
   {
     key: "Content-Security-Policy",
     value: `
-      default-src 'self';
-      script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com;
+      default-src 'self' https://*.fundaproal.gob.ve;
+      script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.fundaproal.gob.ve https://www.youtube.com https://s.ytimg.com;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-      font-src 'self' https://fonts.gstatic.com;
-      img-src 'self' data: blob: https://*.tile.openstreetmap.org https://img.youtube.com https://i.ytimg.com https://upload.wikimedia.org;
+      font-src 'self' data: https://fonts.gstatic.com;
+      img-src 'self' data: blob: https://*.fundaproal.gob.ve https://*.tile.openstreetmap.org https://img.youtube.com https://i.ytimg.com https://upload.wikimedia.org;
       frame-src 'self' blob: data: https://www.youtube.com https://www.youtube-nocookie.com https://www.instagram.com;
-      connect-src 'self' blob: data: https://www.youtube.com;
-      frame-ancestors 'self';
-      form-action 'self';
+      connect-src 'self' blob: data: https://*.fundaproal.gob.ve https://www.youtube.com;
+      frame-ancestors 'self' https://*.fundaproal.gob.ve;
+      form-action 'self' https://*.fundaproal.gob.ve;
       base-uri 'self';
       object-src 'self' blob: data:;
     `

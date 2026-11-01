@@ -46,6 +46,7 @@ export async function proxy(request: NextRequest) {
 
   // Exclusión temprana para assets estáticos públicos y recursos de transferencia masiva
   if (
+    pathname.startsWith("/_next/") ||
     pathname.startsWith("/uploads/") ||
     pathname.startsWith("/images/") ||
     pathname.startsWith("/icons/") ||
