@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import prisma from "@/lib/prisma";
+import { getBaseUploadDir } from "@/lib/safe-upload";
 
 export const dynamic = "force-dynamic";
 
@@ -54,11 +55,15 @@ export async function GET(request: NextRequest) {
 
     // Prevención estricta de Path Traversal
     const safeSubpath = path.normalize(filePathParam).replace(/^(\.\.[\/\\])+/, "").replace(/^[\\\/]+/, "");
-    let absoluteFilePath = path.join(process.cwd(), "public", safeSubpath);
+    const baseDir = getBaseUploadDir();
+    let absoluteFilePath = path.join(baseDir, "public", safeSubpath);
 
     if (!fs.existsSync(absoluteFilePath)) {
-      const standalonePath = path.join(process.cwd(), ".next", "standalone", "public", safeSubpath);
-      if (fs.existsSync(standalonePath)) {
+      const fallbackCwd = path.join(process.cwd(), "public", safeSubpath);
+      const standalonePath = path.join(baseDir, ".next", "standalone", "public", safeSubpath);
+      if (fs.existsSync(fallbackCwd)) {
+        absoluteFilePath = fallbackCwd;
+      } else if (fs.existsSync(standalonePath)) {
         absoluteFilePath = standalonePath;
       } else {
         return new NextResponse("El archivo físico del documento no existe en el servidor.", {

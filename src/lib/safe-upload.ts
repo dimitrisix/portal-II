@@ -16,6 +16,18 @@ const ALLOWED_MIME_TYPES: Record<string, string> = {
 };
 
 /**
+ * Obtiene el directorio base de la aplicación.
+ * Si detecta la ruta del entorno de producción Linux (/var/www/portal/public),
+ * la utiliza de forma absoluta independientemente del directorio actual del proceso.
+ */
+export function getBaseUploadDir(): string {
+  if (fsSync.existsSync("/var/www/portal/public")) {
+    return "/var/www/portal";
+  }
+  return process.cwd();
+}
+
+/**
  * Valida la firma binaria (Magic Bytes) para impedir evasión de extensiones (.exe renombrado a .png).
  */
 function validateMagicBytes(buffer: Buffer, mimeType: string): boolean {
@@ -99,14 +111,15 @@ export async function processAndSaveImage(
   // Generación de nombre criptográficamente seguro (evita colisiones y Path Traversal)
   const uniqueName = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}${safeExtension}`;
 
+  const baseDir = getBaseUploadDir();
   const primaryUploadDir = path.join(
-    process.cwd(),
+    baseDir,
     "public",
     "uploads",
     cleanSubfolder,
   );
   const standaloneUploadDir = path.join(
-    process.cwd(),
+    baseDir,
     ".next",
     "standalone",
     "public",
@@ -115,7 +128,19 @@ export async function processAndSaveImage(
   );
 
   // Crear carpetas de forma segura
-  await fs.mkdir(primaryUploadDir, { recursive: true });
+  try {
+    await fs.mkdir(primaryUploadDir, { recursive: true, mode: 0o777 });
+  } catch (err: unknown) {
+    const e = err as { code?: string };
+    if (e?.code === "EACCES") {
+      return {
+        success: false,
+        error:
+          "Permiso denegado en el servidor al guardar imagen. Ejecuta: sudo mkdir -p /var/www/portal/public/uploads && sudo chmod -R 777 /var/www/portal/public",
+      };
+    }
+    throw err;
+  }
   try {
     await fs.mkdir(standaloneUploadDir, { recursive: true });
   } catch {}
@@ -201,14 +226,15 @@ export async function processAndSavePdf(
   // Generar nombre criptográfico para evitar colisiones
   const uniqueName = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}.pdf`;
 
+  const baseDir = getBaseUploadDir();
   const primaryUploadDir = path.join(
-    process.cwd(),
+    baseDir,
     "public",
     "uploads",
     cleanSubfolder,
   );
   const standaloneUploadDir = path.join(
-    process.cwd(),
+    baseDir,
     ".next",
     "standalone",
     "public",
@@ -216,7 +242,19 @@ export async function processAndSavePdf(
     cleanSubfolder,
   );
 
-  await fs.mkdir(primaryUploadDir, { recursive: true });
+  try {
+    await fs.mkdir(primaryUploadDir, { recursive: true, mode: 0o777 });
+  } catch (err: unknown) {
+    const e = err as { code?: string };
+    if (e?.code === "EACCES") {
+      return {
+        success: false,
+        error:
+          "Permiso denegado en el servidor al guardar el PDF. Ejecuta: sudo mkdir -p /var/www/portal/public/uploads/revista && sudo chmod -R 777 /var/www/portal/public",
+      };
+    }
+    throw err;
+  }
   try {
     await fs.mkdir(standaloneUploadDir, { recursive: true });
   } catch {}
@@ -271,15 +309,16 @@ export async function safeDeleteUploadedFile(
   const fileName = path.basename(publicUrl);
   if (!fileName || fileName.includes("..")) return;
 
+  const baseDir = getBaseUploadDir();
   const primaryFilePath = path.join(
-    process.cwd(),
+    baseDir,
     "public",
     "uploads",
     cleanSubfolder,
     fileName,
   );
   const standaloneFilePath = path.join(
-    process.cwd(),
+    baseDir,
     ".next",
     "standalone",
     "public",

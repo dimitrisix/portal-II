@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import fsSync from "fs";
 import crypto from "crypto";
 import { verifyApiAuth } from "@/lib/auth-server";
+import { getBaseUploadDir } from "@/lib/safe-upload";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutos
@@ -117,9 +118,10 @@ export async function POST(request: Request) {
     const cleanOriginalName = fileName.replace(/[^\w\s.-]/gi, "").trim() || "Revista.pdf";
     const uniqueName = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}.pdf`;
 
-    const primaryUploadDir = path.join(process.cwd(), "public", "uploads", "revista");
+    const baseDir = getBaseUploadDir();
+    const primaryUploadDir = path.join(baseDir, "public", "uploads", "revista");
     const standaloneUploadDir = path.join(
-      process.cwd(),
+      baseDir,
       ".next",
       "standalone",
       "public",
@@ -128,14 +130,17 @@ export async function POST(request: Request) {
     );
 
     try {
-      await fs.mkdir(primaryUploadDir, { recursive: true });
+      await fs.mkdir(primaryUploadDir, { recursive: true, mode: 0o777 });
+      try {
+        await fs.chmod(primaryUploadDir, 0o777);
+      } catch {}
     } catch (mkdirErr: unknown) {
       const err = mkdirErr as { code?: string; message?: string };
       if (err?.code === "EACCES" || err?.message?.includes("EACCES")) {
         return NextResponse.json(
           {
             error:
-              "Permiso denegado en el servidor al crear la carpeta public/uploads/revista. Ejecuta en tu servidor: sudo chmod -R 777 /var/www/portal/public",
+              "Permiso denegado en el servidor al crear la carpeta public/uploads/revista. Ejecuta: sudo mkdir -p /var/www/portal/public/uploads/revista && sudo chmod -R 777 /var/www/portal/public",
           },
           { status: 500 },
         );
@@ -164,7 +169,18 @@ export async function POST(request: Request) {
     writeStream.end();
     await new Promise<void>((resolve, reject) => {
       writeStream.on("finish", () => resolve());
-      writeStream.on("error", (err) => reject(err));
+      writeStream.on("error", (err: unknown) => {
+        const e = err as { code?: string; message?: string };
+        if (e?.code === "EACCES" || e?.message?.includes("EACCES")) {
+          reject(
+            new Error(
+              "Permiso denegado al escribir el archivo en public/uploads/revista. Ejecuta: sudo chmod -R 777 /var/www/portal/public",
+            ),
+          );
+        } else {
+          reject(err);
+        }
+      });
     });
 
     // Copiar hacia carpeta standalone
