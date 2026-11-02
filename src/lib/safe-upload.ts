@@ -116,14 +116,18 @@ export async function processAndSaveImage(
 
   // Crear carpetas de forma segura
   await fs.mkdir(primaryUploadDir, { recursive: true });
-  await fs.mkdir(standaloneUploadDir, { recursive: true });
+  try {
+    await fs.mkdir(standaloneUploadDir, { recursive: true });
+  } catch {}
 
   const primaryFilePath = path.join(primaryUploadDir, uniqueName);
   const standaloneFilePath = path.join(standaloneUploadDir, uniqueName);
 
-  // Escribir en ambas ubicaciones
+  // Escribir en almacenamiento principal
   await fs.writeFile(primaryFilePath, buffer);
-  await fs.writeFile(standaloneFilePath, buffer);
+  try {
+    await fs.writeFile(standaloneFilePath, buffer);
+  } catch {}
 
   const publicUrl = cleanSubfolder
     ? `/uploads/${cleanSubfolder}/${uniqueName}`
@@ -213,7 +217,9 @@ export async function processAndSavePdf(
   );
 
   await fs.mkdir(primaryUploadDir, { recursive: true });
-  await fs.mkdir(standaloneUploadDir, { recursive: true });
+  try {
+    await fs.mkdir(standaloneUploadDir, { recursive: true });
+  } catch {}
 
   const primaryFilePath = path.join(primaryUploadDir, uniqueName);
   const standaloneFilePath = path.join(standaloneUploadDir, uniqueName);

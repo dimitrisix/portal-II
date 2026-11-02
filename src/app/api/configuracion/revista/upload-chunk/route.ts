@@ -129,19 +129,24 @@ export async function POST(request: Request) {
 
     try {
       await fs.mkdir(primaryUploadDir, { recursive: true });
-      await fs.mkdir(standaloneUploadDir, { recursive: true });
     } catch (mkdirErr: unknown) {
       const err = mkdirErr as { code?: string; message?: string };
       if (err?.code === "EACCES" || err?.message?.includes("EACCES")) {
         return NextResponse.json(
           {
             error:
-              "Permiso denegado en el servidor al crear la carpeta public/uploads/revista. Ejecuta: sudo chmod -R 777 /var/www/portal/public/uploads",
+              "Permiso denegado en el servidor al crear la carpeta public/uploads/revista. Ejecuta en tu servidor: sudo chmod -R 777 /var/www/portal/public",
           },
           { status: 500 },
         );
       }
       throw mkdirErr;
+    }
+
+    try {
+      await fs.mkdir(standaloneUploadDir, { recursive: true });
+    } catch {
+      // Ignorar si la carpeta standalone no existe o no tiene permisos
     }
 
     const primaryFilePath = path.join(primaryUploadDir, uniqueName);
