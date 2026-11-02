@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
+import os from "os";
 import fs from "fs/promises";
 import fsSync from "fs";
 import crypto from "crypto";
@@ -59,7 +60,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const tempDir = path.join(process.cwd(), "public", "uploads", "temp", uploadId);
+    // Usar os.tmpdir() (/tmp en Linux) que garantiza permisos de escritura universales
+    const tempDir = path.join(os.tmpdir(), "portal-revista-temp", uploadId);
     await fs.mkdir(tempDir, { recursive: true });
 
     // En el primer fragmento (índice 0), validar los Magic Bytes de PDF (%PDF -> 0x25, 0x50, 0x44, 0x46)
@@ -125,8 +127,22 @@ export async function POST(request: Request) {
       "revista",
     );
 
-    await fs.mkdir(primaryUploadDir, { recursive: true });
-    await fs.mkdir(standaloneUploadDir, { recursive: true });
+    try {
+      await fs.mkdir(primaryUploadDir, { recursive: true });
+      await fs.mkdir(standaloneUploadDir, { recursive: true });
+    } catch (mkdirErr: unknown) {
+      const err = mkdirErr as { code?: string; message?: string };
+      if (err?.code === "EACCES" || err?.message?.includes("EACCES")) {
+        return NextResponse.json(
+          {
+            error:
+              "Permiso denegado en el servidor al crear la carpeta public/uploads/revista. Ejecuta: sudo chmod -R 777 /var/www/portal/public/uploads",
+          },
+          { status: 500 },
+        );
+      }
+      throw mkdirErr;
+    }
 
     const primaryFilePath = path.join(primaryUploadDir, uniqueName);
     const standaloneFilePath = path.join(standaloneUploadDir, uniqueName);
@@ -171,10 +187,27 @@ export async function POST(request: Request) {
       originalName: cleanOriginalName,
       fileSizeFormatted,
     });
-  } catch (error) {
+  } catch (error: unknown) {
+    const errObj = error as { code?: string; message?: string };
+    const errMsg = errObj?.message || String(error);
     console.error("Error al procesar fragmento de subida:", error);
+
+    if (
+      errObj?.code === "EACCES" ||
+      errMsg.includes("EACCES") ||
+      errMsg.includes("permission denied")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Error de permisos (EACCES) en el servidor al guardar el archivo. Ejecuta: sudo chmod -R 777 /var/www/portal/public/uploads",
+        },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json(
-      { error: "Error interno del servidor durante la transferencia del fragmento." },
+      { error: `Error al procesar fragmento: ${errMsg}` },
       { status: 500 },
     );
   }
@@ -190,7 +223,7 @@ export async function DELETE(request: NextRequest) {
 
   const uploadId = request.nextUrl.searchParams.get("uploadId");
   if (uploadId && /^[a-zA-Z0-9_-]{10,80}$/.test(uploadId)) {
-    const tempDir = path.join(process.cwd(), "public", "uploads", "temp", uploadId);
+    const tempDir = path.join(os.tmpdir(), "portal-revista-temp", uploadId);
     try {
       await fs.rm(tempDir, { recursive: true, force: true });
     } catch {}
