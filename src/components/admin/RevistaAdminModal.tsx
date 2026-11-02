@@ -358,7 +358,115 @@ export function RevistaAdminModal() {
     }
   };
 
-  // Guardar formulario completo con monitoreo XHR de subida para archivos pesados
+  // Función para subir archivos PDF masivos (400MB+) en fragmentos de 10MB
+  // Esto elimina cualquier restricción o error 413 de NGINX / servidores web
+  const uploadPdfEnFragmentos = async (
+    file: File,
+    onProgress: (loaded: number, total: number) => void,
+  ): Promise<{ publicUrl: string; originalName: string; fileSizeFormatted: string }> => {
+    const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB por fragmento (pasa fácilmente cualquier proxy)
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const uploadId = `rev_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    let totalBytesUploaded = 0;
+
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const chunkBlob = file.slice(start, end);
+
+      const chunkFormData = new FormData();
+      chunkFormData.append("uploadId", uploadId);
+      chunkFormData.append("chunkIndex", i.toString());
+      chunkFormData.append("totalChunks", totalChunks.toString());
+      chunkFormData.append("fileName", file.name);
+      chunkFormData.append("fileSize", file.size.toString());
+      chunkFormData.append("chunk", chunkBlob, file.name);
+
+      const chunkResult = await new Promise<{
+        success: boolean;
+        completed: boolean;
+        publicUrl?: string;
+        originalName?: string;
+        fileSizeFormatted?: string;
+        error?: string;
+      }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/configuracion/revista/upload-chunk");
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const currentTotal = totalBytesUploaded + event.loaded;
+            onProgress(currentTotal, file.size);
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const resJson = JSON.parse(xhr.responseText);
+              resolve(resJson);
+            } catch {
+              reject(new Error("Respuesta inválida del servidor al transferir fragmento."));
+            }
+          } else {
+            try {
+              const resJson = JSON.parse(xhr.responseText);
+              reject(
+                new Error(
+                  resJson.error || `Error ${xhr.status} en fragmento ${i + 1}/${totalChunks}`,
+                ),
+              );
+            } catch {
+              if (xhr.status === 413) {
+                reject(
+                  new Error(
+                    "Error 413: El tamaño del fragmento excede el límite del servidor web (Nginx).",
+                  ),
+                );
+              } else {
+                reject(
+                  new Error(
+                    `Error del servidor (${xhr.status}) en fragmento ${i + 1}/${totalChunks}`,
+                  ),
+                );
+              }
+            }
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(
+            new Error(
+              `Error de conexión al enviar el fragmento ${i + 1} de ${totalChunks}. Comprueba tu red.`,
+            ),
+          );
+        };
+
+        xhr.send(chunkFormData);
+      });
+
+      totalBytesUploaded = end;
+      onProgress(totalBytesUploaded, file.size);
+
+      if (i === totalChunks - 1) {
+        if (!chunkResult.completed || !chunkResult.publicUrl) {
+          throw new Error(
+            chunkResult.error || "No se pudo ensamblar el archivo final en el servidor.",
+          );
+        }
+        return {
+          publicUrl: chunkResult.publicUrl,
+          originalName: chunkResult.originalName || file.name,
+          fileSizeFormatted:
+            chunkResult.fileSizeFormatted || `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        };
+      }
+    }
+
+    throw new Error("Error inesperado en la carga por fragmentos.");
+  };
+
+  // Guardar formulario completo con carga por fragmentos para archivos masivos
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -380,6 +488,24 @@ export function RevistaAdminModal() {
     setMensajeError(null);
 
     try {
+      let uploadedArchivoUrl: string | null = null;
+      let uploadedNombreArchivo: string | null = null;
+      let uploadedTamanoArchivo: string | null = null;
+
+      // 1. Si hay archivo PDF nuevo, se sube primero por fragmentos de 10 MB (evita 413 de NGINX)
+      if (archivoPdf) {
+        const uploadResult = await uploadPdfEnFragmentos(archivoPdf, (loaded, total) => {
+          const percentComplete = Math.round((loaded / total) * 100);
+          setProgresoSubida(percentComplete);
+          setBytesSubidos(loaded);
+          setBytesTotales(total);
+        });
+        uploadedArchivoUrl = uploadResult.publicUrl;
+        uploadedNombreArchivo = uploadResult.originalName;
+        uploadedTamanoArchivo = uploadResult.fileSizeFormatted;
+      }
+
+      // 2. Preparar el formulario de guardado final
       const formData = new FormData();
       if (editingId) {
         formData.append("id", editingId.toString());
@@ -391,8 +517,10 @@ export function RevistaAdminModal() {
       formData.append("orden", orden.toString());
       formData.append("habilitado", habilitado ? "true" : "false");
 
-      if (archivoPdf) {
-        formData.append("file", archivoPdf);
+      if (uploadedArchivoUrl) {
+        formData.append("archivoUrl", uploadedArchivoUrl);
+        if (uploadedNombreArchivo) formData.append("nombreArchivo", uploadedNombreArchivo);
+        if (uploadedTamanoArchivo) formData.append("tamanoArchivo", uploadedTamanoArchivo);
       }
 
       if (modoPortada === "primera_pagina") {
@@ -406,41 +534,25 @@ export function RevistaAdminModal() {
         }
       }
 
-      // Transmisión asíncrona monitoreada con XHR
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/api/configuracion/revista");
-
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percentComplete = Math.round((event.loaded / event.total) * 100);
-            setProgresoSubida(percentComplete);
-            setBytesSubidos(event.loaded);
-            setBytesTotales(event.total);
-          }
-        };
-
-        xhr.onload = async () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            try {
-              const resJson = JSON.parse(xhr.responseText);
-              reject(new Error(resJson.error || `Error ${xhr.status} al guardar`));
-            } catch {
-              reject(new Error(`Error del servidor (${xhr.status})`));
-            }
-          }
-        };
-
-        xhr.onerror = () => {
-          reject(
-            new Error("Error de red durante la transferencia del archivo. Comprueba la conexión."),
-          );
-        };
-
-        xhr.send(formData);
+      // 3. Guardar metadatos en la base de datos
+      const res = await fetch("/api/configuracion/revista", {
+        method: "POST",
+        body: formData,
       });
+
+      if (!res.ok) {
+        let errMessage = `Error ${res.status} al guardar los datos`;
+        try {
+          const resJson = await res.json();
+          errMessage = resJson.error || errMessage;
+        } catch {
+          if (res.status === 413) {
+            errMessage =
+              "Error 413: El servidor web (Nginx) rechazó la petición por tamaño.";
+          }
+        }
+        throw new Error(errMessage);
+      }
 
       await cargarTodasLasRevistas();
       notificarCambioRevista();

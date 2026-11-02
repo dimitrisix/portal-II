@@ -146,9 +146,23 @@ export async function POST(request: Request) {
         portadaUrl = null;
       }
 
-      // Procesar nuevo archivo PDF si se envió
+      // Si el archivo ya fue subido previamente por fragmentos (Chunked Upload)
+      const directArchivoUrl = formData.get("archivoUrl") as string | null;
+      const directNombreArchivo = formData.get("nombreArchivo") as string | null;
+      const directTamanoArchivo = formData.get("tamanoArchivo") as string | null;
+
+      if (directArchivoUrl) {
+        if (archivoUrl && archivoUrl !== directArchivoUrl) {
+          await safeDeleteUploadedFile(archivoUrl, "revista");
+        }
+        archivoUrl = directArchivoUrl;
+        if (directNombreArchivo) nombreArchivo = directNombreArchivo;
+        if (directTamanoArchivo) tamanoArchivo = directTamanoArchivo;
+      }
+
+      // Procesar nuevo archivo PDF si se envió de forma directa
       const pdfFile = formData.get("file") as File | null;
-      if (pdfFile && pdfFile.size > 0) {
+      if (!directArchivoUrl && pdfFile && pdfFile.size > 0) {
         const pdfResult = await processAndSavePdf(pdfFile, "revista");
         if (!pdfResult.success || !pdfResult.publicUrl) {
           return NextResponse.json(
