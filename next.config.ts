@@ -153,11 +153,18 @@ const nextConfig: NextConfig = {
     "10.101.48.57",
   ],
 
-  // Límite de tamaño para operaciones de carga masiva (permite archivos de hasta 1GB sin truncamiento en el proxy/middleware)
+  // Límite de tamaño para operaciones de carga masiva y orígenes autorizados para Server Actions en producción
   experimental: {
     proxyClientMaxBodySize: "1gb",
     serverActions: {
       bodySizeLimit: "600mb",
+      allowedOrigins: [
+        "fundaproal.gob.ve",
+        "www.fundaproal.gob.ve",
+        "*.fundaproal.gob.ve",
+        "localhost:3000",
+        "127.0.0.1:3000",
+      ],
     },
   },
 

@@ -2,14 +2,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 import Image from "next/image";
-import { processLogin, LoginState } from "./actions";
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-
+function SubmitButton({ pending }: { pending: boolean }) {
   return (
     <button
       type="submit"
@@ -22,13 +17,43 @@ function SubmitButton() {
 }
 
 function LoginFormContent() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [motivoInactividad, setMotivoInactividad] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [biometricError, setBiometricError] = useState("");
 
-  const initialState: LoginState = {};
-  const [state, formAction] = useActionState(processLogin, initialState);
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage("");
+    setPending(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success) {
+        window.location.replace("/dashboard");
+        return;
+      }
+
+      setErrorMessage(data.error || "Usuario o contraseña incorrectos.");
+      setPending(false);
+    } catch {
+      setErrorMessage(
+        "Error de conexión con el servidor. Por favor verifique su conexión o intente nuevamente.",
+      );
+      setPending(false);
+    }
+  };
 
   // Leer motivo de inactividad directamente en cliente sin useSearchParams (evita Suspense y baches SSR)
   useEffect(() => {
@@ -46,13 +71,6 @@ function LoginFormContent() {
       // Ignorar si el navegador restringe window.location
     }
   }, []);
-
-  // 1. Redirección limpia al dashboard tras autenticación exitosa
-  useEffect(() => {
-    if (state?.success) {
-      window.location.replace("/dashboard");
-    }
-  }, [state]);
 
   // 2. Trampa de historial: bloquea el botón "Atrás" del navegador y mantiene al usuario en /login
   useEffect(() => {
@@ -182,7 +200,7 @@ function LoginFormContent() {
       )}
 
       {/* Formulario */}
-      <form action={formAction} className="space-y-4">
+      <form onSubmit={handleFormSubmit} className="space-y-4">
         {/* Honeypot: campo invisible anti-bots */}
         <div className="opacity-0 absolute top-0 left-0 h-0 w-0 -z-50 pointer-events-none overflow-hidden">
           <input
@@ -193,9 +211,9 @@ function LoginFormContent() {
           />
         </div>
 
-        {state?.error && (
+        {errorMessage && (
           <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
-            {state.error}
+            {errorMessage}
           </div>
         )}
 
@@ -217,9 +235,12 @@ function LoginFormContent() {
             type="text"
             id="username"
             name="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             className="w-full px-3.5 py-2 text-sm rounded-md border border-gray-300 text-[#5d596c] placeholder-gray-400 focus:outline-none focus:border-[#7367f0] focus:ring-1 focus:ring-[#7367f0] transition-colors"
             placeholder="Introduzca su nombre de usuario"
             required
+            disabled={pending}
           />
         </div>
 
@@ -232,12 +253,6 @@ function LoginFormContent() {
             >
               Contraseña
             </label>
-            {/* <Link
-              href="/dashboard/login/recuperar"
-              className="text-xs text-[#7367f0] hover:underline font-medium"
-            >
-              ¿Olvidó su contraseña?
-            </Link> */}
           </div>
 
           <div className="relative flex items-center">
@@ -245,9 +260,12 @@ function LoginFormContent() {
               type={showPassword ? "text" : "password"}
               id="password"
               name="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full pl-3.5 pr-10 py-2 text-sm rounded-md border border-gray-300 text-[#5d596c] placeholder-gray-400 focus:outline-none focus:border-[#7367f0] focus:ring-1 focus:ring-[#7367f0] transition-colors tracking-wide"
               placeholder="············"
               required
+              disabled={pending}
             />
             <button
               type="button"
@@ -296,7 +314,7 @@ function LoginFormContent() {
 
         {/* Botón Ingresar */}
         <div className="pt-2">
-          <SubmitButton />
+          <SubmitButton pending={pending} />
         </div>
       </form>
 
