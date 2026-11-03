@@ -157,13 +157,17 @@ export async function POST(request: Request) {
     const primaryFilePath = path.join(primaryUploadDir, uniqueName);
     const standaloneFilePath = path.join(standaloneUploadDir, uniqueName);
 
-    // Escribir ensamblado secuencial por streams
+    // Escribir ensamblado secuencial por streams con control estricto de backpressure (mantiene memoria RAM baja y estable)
     const writeStream = fsSync.createWriteStream(primaryFilePath);
 
     for (let i = 0; i < totalChunks; i++) {
       const p = path.join(tempDir, `${i}.part`);
       const buffer = await fs.readFile(p);
-      writeStream.write(buffer);
+      if (!writeStream.write(buffer)) {
+        await new Promise<void>((resolve) =>
+          writeStream.once("drain", () => resolve()),
+        );
+      }
     }
 
     writeStream.end();
