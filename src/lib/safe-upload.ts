@@ -13,6 +13,7 @@ const ALLOWED_MIME_TYPES: Record<string, string> = {
   "image/jpeg": ".jpg",
   "image/png": ".png",
   "image/webp": ".webp",
+  "image/svg+xml": ".svg",
 };
 
 /**
@@ -54,6 +55,16 @@ function validateMagicBytes(buffer: Buffer, mimeType: string): boolean {
     const isRiff = buffer.toString("ascii", 0, 4) === "RIFF";
     const isWebp = buffer.toString("ascii", 8, 12) === "WEBP";
     return isRiff && isWebp;
+  }
+
+  if (mimeType === "image/svg+xml") {
+    const text = buffer
+      .toString("utf8", 0, Math.min(buffer.length, 2048))
+      .toLowerCase();
+    return (
+      (text.includes("<svg") || text.includes("<?xml")) &&
+      !text.includes("<script")
+    );
   }
 
   return false;
