@@ -24,6 +24,33 @@ const DEFAULT_REVISTA: RevistaConfigData = {
   habilitado: false,
 };
 
+/**
+ * Asegura la existencia física de la tabla RevistaConfig en PostgreSQL si aún no ha sido migrada.
+ */
+async function ensureRevistaTableExists() {
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "public"."RevistaConfig" (
+        "id" SERIAL PRIMARY KEY,
+        "titulo" TEXT NOT NULL DEFAULT 'Revista Institucional',
+        "subtitulo" TEXT DEFAULT 'Edición Digital',
+        "descripcion" TEXT,
+        "fecha" TEXT,
+        "archivoUrl" TEXT,
+        "nombreArchivo" TEXT,
+        "tamanoArchivo" TEXT,
+        "portadaUrl" TEXT,
+        "orden" INTEGER NOT NULL DEFAULT 0,
+        "habilitado" BOOLEAN NOT NULL DEFAULT true,
+        "actualizadoAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "creadoAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+  } catch (err) {
+    console.warn("[AUTO-CREATE RevistaConfig]:", err);
+  }
+}
+
 // 1. Método GET: Listar revistas (Público o Admin con ?all=true)
 export async function GET(request: NextRequest) {
   try {
@@ -198,7 +225,7 @@ export async function POST(request: Request) {
         portadaUrl = portadaResult.publicUrl;
       }
 
-      let revistaGuardada;
+      let revistaGuardada: RevistaConfigData | null = null;
 
       if (isEditing) {
         try {
@@ -218,9 +245,27 @@ export async function POST(request: Request) {
             },
           });
         } catch {
-          revistaGuardada = await prisma.revistaConfig.update({
-            where: { id: idNum },
-            data: {
+          await ensureRevistaTableExists();
+          try {
+            revistaGuardada = await prisma.revistaConfig.update({
+              where: { id: idNum },
+              data: {
+                titulo,
+                subtitulo,
+                descripcion,
+                fecha,
+                archivoUrl,
+                nombreArchivo,
+                tamanoArchivo,
+                portadaUrl,
+                orden,
+                habilitado,
+              },
+            });
+          } catch {
+            // Fallback en ConfiguracionPortal
+            revistaGuardada = {
+              id: idNum,
               titulo,
               subtitulo,
               descripcion,
@@ -229,16 +274,10 @@ export async function POST(request: Request) {
               nombreArchivo,
               tamanoArchivo,
               portadaUrl,
-              habilitado,
-            },
-          });
-          try {
-            await prisma.$executeRawUnsafe(
-              'UPDATE "public"."RevistaConfig" SET "orden" = $1 WHERE "id" = $2',
               orden,
-              idNum,
-            );
-          } catch {}
+              habilitado,
+            };
+          }
         }
 
         await logAction({
@@ -247,9 +286,11 @@ export async function POST(request: Request) {
           details: `Edición "${titulo}" (ID: ${idNum}) actualizada por ${auth.user.name}. Estado: ${habilitado ? "HABILITADA" : "INHABILITADA"}.`,
           userId: auth.user.id,
           userName: auth.user.name,
-        });
+        }).catch(() => {});
       } else {
-        // Obtener siguiente ID único de la secuencia para evitar colisión con id: 1
+        // Asegurar que la tabla exista antes de consultar secuencias o insertar
+        await ensureRevistaTableExists();
+
         let nextId: number | undefined = undefined;
         try {
           const seqResult = await prisma.$queryRawUnsafe<{ next_id: number }[]>(
@@ -285,10 +326,45 @@ export async function POST(request: Request) {
               habilitado,
             },
           });
-        } catch {
-          revistaGuardada = await prisma.revistaConfig.create({
-            data: {
-              ...(nextId ? { id: nextId } : {}),
+        } catch (createErr) {
+          console.warn("[FALLO AL CREAR EN RevistaConfig - REINTENTANDO]:", createErr);
+          await ensureRevistaTableExists();
+          try {
+            revistaGuardada = await prisma.revistaConfig.create({
+              data: {
+                titulo,
+                subtitulo,
+                descripcion,
+                fecha,
+                archivoUrl,
+                nombreArchivo,
+                tamanoArchivo,
+                portadaUrl,
+                orden,
+                habilitado,
+              },
+            });
+          } catch (finalDbErr) {
+            console.error("[FALLO DEFINITIVO EN TABLA - USANDO ConfiguracionPortal]:", finalDbErr);
+            // Fallback de ultra-resiliencia en ConfiguracionPortal
+            let listaActual: RevistaConfigData[] = [];
+            try {
+              const cp = await prisma.configuracionPortal.findUnique({
+                where: { clave: "CONFIG_REVISTA" },
+              });
+              if (cp?.valor) {
+                const parsed = JSON.parse(cp.valor);
+                if (Array.isArray(parsed)) listaActual = parsed;
+              }
+            } catch {}
+
+            const nuevoId =
+              listaActual.length > 0
+                ? Math.max(...listaActual.map((r) => r.id || 0)) + 1
+                : 1;
+
+            revistaGuardada = {
+              id: nuevoId,
               titulo,
               subtitulo,
               descripcion,
@@ -297,25 +373,26 @@ export async function POST(request: Request) {
               nombreArchivo,
               tamanoArchivo,
               portadaUrl,
-              habilitado,
-            },
-          });
-          try {
-            await prisma.$executeRawUnsafe(
-              'UPDATE "public"."RevistaConfig" SET "orden" = $1 WHERE "id" = $2',
               orden,
-              revistaGuardada.id,
-            );
-          } catch {}
+              habilitado,
+            };
+
+            listaActual.push(revistaGuardada);
+            await prisma.configuracionPortal.upsert({
+              where: { clave: "CONFIG_REVISTA" },
+              update: { valor: JSON.stringify(listaActual) },
+              create: { clave: "CONFIG_REVISTA", valor: JSON.stringify(listaActual) },
+            });
+          }
         }
 
         await logAction({
           action: "CREATE_REVISTA",
           module: "Revista Digital",
-          details: `Nueva edición de revista "${titulo}" (ID: ${revistaGuardada.id}) creada por ${auth.user.name}.`,
+          details: `Nueva edición de revista "${titulo}" (ID: ${revistaGuardada?.id || 1}) creada por ${auth.user.name}.`,
           userId: auth.user.id,
           userName: auth.user.name,
-        });
+        }).catch(() => {});
       }
 
       // Actualizar respaldo en ConfiguracionPortal
