@@ -34,6 +34,12 @@ function FooterAdminForm({
     initialConfig ? initialConfig.visible !== false : true,
   );
 
+  React.useEffect(() => {
+    if (initialConfig?.imagenUrl && !archivoSeleccionado) {
+      setPreviewUrl(initialConfig.imagenUrl);
+    }
+  }, [initialConfig?.imagenUrl, archivoSeleccionado]);
+
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -102,7 +108,7 @@ function FooterAdminForm({
       notificarCambio();
 
       setArchivoSeleccionado(null);
-      setPreviewUrl(finalImageUrl);
+      setPreviewUrl(`${finalImageUrl}?t=${Date.now()}`);
       if (fileInputRef.current) fileInputRef.current.value = "";
       setMensaje("¡Pie de página actualizado y sincronizado en vivo!");
     } catch (err: unknown) {

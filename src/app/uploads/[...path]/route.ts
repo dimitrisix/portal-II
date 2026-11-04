@@ -50,8 +50,8 @@ function resolveUploadFilePath(segments: string[]): string | null {
 
   for (const candidate of candidatePaths) {
     try {
-      if (fsSync.existsSync(candidate)) {
-        const stat = fsSync.statSync(candidate);
+      if (fsSync.existsSync(/*turbopackIgnore: true*/ candidate)) {
+        const stat = fsSync.statSync(/*turbopackIgnore: true*/ candidate);
         if (stat.isFile()) {
           return candidate;
         }
@@ -79,7 +79,7 @@ export async function GET(
       return new NextResponse("Archivo no encontrado", { status: 404 });
     }
 
-    const stat = fsSync.statSync(absolutePath);
+    const stat = fsSync.statSync(/*turbopackIgnore: true*/ absolutePath);
     const ext = path.extname(absolutePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
 
@@ -109,7 +109,7 @@ export async function GET(
 
       const chunkLength = end - start + 1;
       const buffer = Buffer.alloc(chunkLength);
-      const fd = fsSync.openSync(absolutePath, "r");
+      const fd = fsSync.openSync(/*turbopackIgnore: true*/ absolutePath, "r");
       fsSync.readSync(fd, buffer, 0, chunkLength, start);
       fsSync.closeSync(fd);
 
@@ -126,7 +126,7 @@ export async function GET(
     // Para archivos de hasta 20 MB (todas las imágenes PNG/JPG/WEBP/SVG y documentos estándar):
     // Carga directa síncrona en Buffer para máxima compatibilidad, cero overhead y cero fallos de stream
     if (stat.size <= 20 * 1024 * 1024) {
-      const fileBuffer = fsSync.readFileSync(absolutePath);
+      const fileBuffer = fsSync.readFileSync(/*turbopackIgnore: true*/ absolutePath);
       return new NextResponse(fileBuffer, {
         status: 200,
         headers: {
@@ -138,7 +138,7 @@ export async function GET(
 
     // Para archivos masivos (>20 MB como PDFs masivos):
     // Streaming nativo mediante Readable.toWeb con control de flujo
-    const fileStream = fsSync.createReadStream(absolutePath);
+    const fileStream = fsSync.createReadStream(/*turbopackIgnore: true*/ absolutePath);
     const webStream = Readable.toWeb(fileStream);
 
     return new NextResponse(webStream as unknown as ReadableStream, {
@@ -169,7 +169,7 @@ export async function HEAD(
       return new NextResponse(null, { status: 404 });
     }
 
-    const stat = fsSync.statSync(absolutePath);
+    const stat = fsSync.statSync(/*turbopackIgnore: true*/ absolutePath);
     const ext = path.extname(absolutePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
 
