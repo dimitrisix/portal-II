@@ -29,6 +29,62 @@ export function getBaseUploadDir(): string {
 }
 
 /**
+ * Crea y asegura los directorios de carga en todos los destinos posibles
+ * (public/uploads, uploads raíz y standalone), configurando permisos universales 0777
+ * y symlink para que Nginx (www-data) y Node.js puedan leer y escribir sin bloqueos.
+ */
+export async function ensureUploadDirectories(subfolder: string = ""): Promise<{
+  primaryDir: string;
+  rootUploadDir: string;
+  standaloneDir: string;
+}> {
+  const cleanSubfolder = subfolder.replace(/[^a-zA-Z0-9_-]/g, "");
+  const baseDir = getBaseUploadDir();
+
+  const primaryDir = path.join(baseDir, "public", "uploads", cleanSubfolder);
+  const rootUploadDir = path.join(baseDir, "uploads", cleanSubfolder);
+  const standaloneDir = path.join(
+    baseDir,
+    ".next",
+    "standalone",
+    "public",
+    "uploads",
+    cleanSubfolder,
+  );
+
+  const dirsToEnsure = [
+    path.join(baseDir, "public", "uploads"),
+    primaryDir,
+    path.join(baseDir, "uploads"),
+    rootUploadDir,
+    path.join(baseDir, ".next", "standalone", "public", "uploads"),
+    standaloneDir,
+  ];
+
+  for (const dir of dirsToEnsure) {
+    try {
+      await fs.mkdir(dir, { recursive: true, mode: 0o777 });
+      await fs.chmod(dir, 0o777);
+    } catch {
+      // Ignorar si ya existe o no se pueden cambiar permisos en Windows
+    }
+  }
+
+  // En Linux, si no existe el enlace simbólico de uploads en la raíz, crearlo
+  if (process.platform !== "win32") {
+    try {
+      const publicUploads = path.join(baseDir, "public", "uploads");
+      const rootUploads = path.join(baseDir, "uploads");
+      if (fsSync.existsSync(publicUploads) && !fsSync.existsSync(rootUploads)) {
+        fsSync.symlinkSync(publicUploads, rootUploads, "dir");
+      }
+    } catch {}
+  }
+
+  return { primaryDir, rootUploadDir, standaloneDir };
+}
+
+/**
  * Valida la firma binaria (Magic Bytes) para impedir evasión de extensiones (.exe renombrado a .png).
  */
 function validateMagicBytes(buffer: Buffer, mimeType: string): boolean {
@@ -122,25 +178,15 @@ export async function processAndSaveImage(
   // Generación de nombre criptográficamente seguro (evita colisiones y Path Traversal)
   const uniqueName = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}${safeExtension}`;
 
-  const baseDir = getBaseUploadDir();
-  const primaryUploadDir = path.join(
-    baseDir,
-    "public",
-    "uploads",
-    cleanSubfolder,
-  );
-  const standaloneUploadDir = path.join(
-    baseDir,
-    ".next",
-    "standalone",
-    "public",
-    "uploads",
-    cleanSubfolder,
-  );
+  let primaryDir: string;
+  let rootUploadDir: string;
+  let standaloneDir: string;
 
-  // Crear carpetas de forma segura
   try {
-    await fs.mkdir(primaryUploadDir, { recursive: true, mode: 0o777 });
+    const dirs = await ensureUploadDirectories(cleanSubfolder);
+    primaryDir = dirs.primaryDir;
+    rootUploadDir = dirs.rootUploadDir;
+    standaloneDir = dirs.standaloneDir;
   } catch (err: unknown) {
     const e = err as { code?: string };
     if (e?.code === "EACCES") {
@@ -152,17 +198,27 @@ export async function processAndSaveImage(
     }
     throw err;
   }
-  try {
-    await fs.mkdir(standaloneUploadDir, { recursive: true });
-  } catch {}
 
-  const primaryFilePath = path.join(primaryUploadDir, uniqueName);
-  const standaloneFilePath = path.join(standaloneUploadDir, uniqueName);
+  const primaryFilePath = path.join(primaryDir, uniqueName);
+  const rootFilePath = path.join(rootUploadDir, uniqueName);
+  const standaloneFilePath = path.join(standaloneDir, uniqueName);
 
-  // Escribir en almacenamiento principal
+  // 1. Escribir en almacenamiento principal (public/uploads/...)
   await fs.writeFile(primaryFilePath, buffer);
   try {
+    await fs.chmod(primaryFilePath, 0o666);
+  } catch {}
+
+  // 2. Escribir copia en raíz de uploads (para Nginx con root /var/www/portal)
+  try {
+    await fs.writeFile(rootFilePath, buffer);
+    await fs.chmod(rootFilePath, 0o666);
+  } catch {}
+
+  // 3. Escribir copia en standalone
+  try {
     await fs.writeFile(standaloneFilePath, buffer);
+    await fs.chmod(standaloneFilePath, 0o666);
   } catch {}
 
   const publicUrl = cleanSubfolder
@@ -237,24 +293,15 @@ export async function processAndSavePdf(
   // Generar nombre criptográfico para evitar colisiones
   const uniqueName = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}.pdf`;
 
-  const baseDir = getBaseUploadDir();
-  const primaryUploadDir = path.join(
-    baseDir,
-    "public",
-    "uploads",
-    cleanSubfolder,
-  );
-  const standaloneUploadDir = path.join(
-    baseDir,
-    ".next",
-    "standalone",
-    "public",
-    "uploads",
-    cleanSubfolder,
-  );
+  let primaryDir: string;
+  let rootUploadDir: string;
+  let standaloneDir: string;
 
   try {
-    await fs.mkdir(primaryUploadDir, { recursive: true, mode: 0o777 });
+    const dirs = await ensureUploadDirectories(cleanSubfolder);
+    primaryDir = dirs.primaryDir;
+    rootUploadDir = dirs.rootUploadDir;
+    standaloneDir = dirs.standaloneDir;
   } catch (err: unknown) {
     const e = err as { code?: string };
     if (e?.code === "EACCES") {
@@ -266,12 +313,10 @@ export async function processAndSavePdf(
     }
     throw err;
   }
-  try {
-    await fs.mkdir(standaloneUploadDir, { recursive: true });
-  } catch {}
 
-  const primaryFilePath = path.join(primaryUploadDir, uniqueName);
-  const standaloneFilePath = path.join(standaloneUploadDir, uniqueName);
+  const primaryFilePath = path.join(primaryDir, uniqueName);
+  const rootFilePath = path.join(rootUploadDir, uniqueName);
+  const standaloneFilePath = path.join(standaloneDir, uniqueName);
 
   // Guardado eficiente por Streaming por fragmentos:
   // Escribe directamente al disco sin saturar la memoria RAM aun en archivos de 400MB o más
@@ -281,12 +326,21 @@ export async function processAndSavePdf(
 
   await pipeline(nodeReadable, writeStream);
 
-  // Clonación directa por sistema de archivos hacia la carpeta standalone
+  try {
+    await fs.chmod(primaryFilePath, 0o666);
+  } catch {}
+
+  // Copia hacia la carpeta raíz de uploads (para Nginx)
+  try {
+    await fs.copyFile(primaryFilePath, rootFilePath);
+    await fs.chmod(rootFilePath, 0o666);
+  } catch {}
+
+  // Clonación directa hacia la carpeta standalone
   try {
     await fs.copyFile(primaryFilePath, standaloneFilePath);
-  } catch {
-    // Si la carpeta standalone no está en uso en desarrollo, continuar normalmente
-  }
+    await fs.chmod(standaloneFilePath, 0o666);
+  } catch {}
 
   const publicUrl = cleanSubfolder
     ? `/uploads/${cleanSubfolder}/${uniqueName}`
@@ -328,6 +382,12 @@ export async function safeDeleteUploadedFile(
     cleanSubfolder,
     fileName,
   );
+  const rootFilePath = path.join(
+    baseDir,
+    "uploads",
+    cleanSubfolder,
+    fileName,
+  );
   const standaloneFilePath = path.join(
     baseDir,
     ".next",
@@ -340,13 +400,13 @@ export async function safeDeleteUploadedFile(
 
   try {
     await fs.unlink(primaryFilePath);
-  } catch {
-    // Archivo ya no existía
-  }
+  } catch {}
+
+  try {
+    await fs.unlink(rootFilePath);
+  } catch {}
 
   try {
     await fs.unlink(standaloneFilePath);
-  } catch {
-    // Archivo ya no existía
-  }
+  } catch {}
 }

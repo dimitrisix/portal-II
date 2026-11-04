@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fsSync from "fs";
+import { Readable } from "stream";
 import { getBaseUploadDir } from "@/lib/safe-upload";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,48 @@ const MIME_TYPES: Record<string, string> = {
   ".json": "application/json",
 };
 
+/**
+ * Busca de forma exhaustiva la ruta absoluta de un archivo en todas las posibles
+ * carpetas de almacenamiento del sistema (public/uploads, uploads raíz, standalone, cwd, /var/www/portal).
+ */
+function resolveUploadFilePath(segments: string[]): string | null {
+  if (!segments || segments.length === 0) return null;
+
+  // Prevención estricta de Path Traversal
+  const safeSegments = segments
+    .map((s) => s.replace(/[^a-zA-Z0-9_.-]/g, ""))
+    .filter((s) => s !== ".." && s !== "." && s.length > 0);
+
+  if (safeSegments.length === 0) return null;
+
+  const relativeSubpath = path.join(...safeSegments);
+  const baseDir = getBaseUploadDir();
+
+  const candidatePaths = [
+    path.join(baseDir, "public", "uploads", relativeSubpath),
+    path.join(baseDir, "uploads", relativeSubpath),
+    path.join(process.cwd(), "public", "uploads", relativeSubpath),
+    path.join(process.cwd(), "uploads", relativeSubpath),
+    path.join("/var/www/portal", "public", "uploads", relativeSubpath),
+    path.join("/var/www/portal", "uploads", relativeSubpath),
+    path.join(baseDir, ".next", "standalone", "public", "uploads", relativeSubpath),
+    path.join(process.cwd(), ".next", "standalone", "public", "uploads", relativeSubpath),
+  ];
+
+  for (const candidate of candidatePaths) {
+    try {
+      if (fsSync.existsSync(candidate)) {
+        const stat = fsSync.statSync(candidate);
+        if (stat.isFile()) {
+          return candidate;
+        }
+      }
+    } catch {}
+  }
+
+  return null;
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
@@ -30,50 +73,13 @@ export async function GET(
       return new NextResponse("Ruta inválida", { status: 400 });
     }
 
-    // Prevención estricta de Path Traversal
-    const safeSegments = segments
-      .map((s) => s.replace(/[^a-zA-Z0-9_.-]/g, ""))
-      .filter((s) => s !== ".." && s !== "." && s.length > 0);
+    const absolutePath = resolveUploadFilePath(segments);
 
-    if (safeSegments.length === 0) {
-      return new NextResponse("Acceso no permitido", { status: 403 });
-    }
-
-    const relativeSubpath = safeSegments.join(path.sep);
-    const baseDir = getBaseUploadDir();
-
-    let absolutePath = path.join(baseDir, "public", "uploads", relativeSubpath);
-
-    if (!fsSync.existsSync(absolutePath)) {
-      const fallbackCwd = path.join(
-        process.cwd(),
-        "public",
-        "uploads",
-        relativeSubpath,
-      );
-      const standalonePath = path.join(
-        baseDir,
-        ".next",
-        "standalone",
-        "public",
-        "uploads",
-        relativeSubpath,
-      );
-
-      if (fsSync.existsSync(fallbackCwd)) {
-        absolutePath = fallbackCwd;
-      } else if (fsSync.existsSync(standalonePath)) {
-        absolutePath = standalonePath;
-      } else {
-        return new NextResponse("Archivo no encontrado", { status: 404 });
-      }
+    if (!absolutePath) {
+      return new NextResponse("Archivo no encontrado", { status: 404 });
     }
 
     const stat = fsSync.statSync(absolutePath);
-    if (!stat.isFile()) {
-      return new NextResponse("Recurso no válido", { status: 404 });
-    }
-
     const ext = path.extname(absolutePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
 
@@ -84,6 +90,7 @@ export async function GET(
       "X-Content-Type-Options": "nosniff",
     };
 
+    // Manejo de peticiones de rango HTTP (ej: reproductores o visores PDF de navegador)
     const range = request.headers.get("range");
 
     if (range) {
@@ -91,7 +98,7 @@ export async function GET(
       const start = parseInt(parts[0], 10);
       const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
 
-      if (start >= stat.size || end >= stat.size) {
+      if (isNaN(start) || start >= stat.size || end >= stat.size || start > end) {
         return new NextResponse(null, {
           status: 416,
           headers: {
@@ -101,19 +108,12 @@ export async function GET(
       }
 
       const chunkLength = end - start + 1;
-      const fileStream = fsSync.createReadStream(absolutePath, { start, end });
-      const webStream = new ReadableStream({
-        start(controller) {
-          fileStream.on("data", (chunk) => controller.enqueue(chunk));
-          fileStream.on("end", () => controller.close());
-          fileStream.on("error", (err) => controller.error(err));
-        },
-        cancel() {
-          fileStream.destroy();
-        },
-      });
+      const buffer = Buffer.alloc(chunkLength);
+      const fd = fsSync.openSync(absolutePath, "r");
+      fsSync.readSync(fd, buffer, 0, chunkLength, start);
+      fsSync.closeSync(fd);
 
-      return new NextResponse(webStream, {
+      return new NextResponse(buffer, {
         status: 206,
         headers: {
           ...baseHeaders,
@@ -123,19 +123,25 @@ export async function GET(
       });
     }
 
-    const fileStream = fsSync.createReadStream(absolutePath);
-    const webStream = new ReadableStream({
-      start(controller) {
-        fileStream.on("data", (chunk) => controller.enqueue(chunk));
-        fileStream.on("end", () => controller.close());
-        fileStream.on("error", (err) => controller.error(err));
-      },
-      cancel() {
-        fileStream.destroy();
-      },
-    });
+    // Para archivos de hasta 20 MB (todas las imágenes PNG/JPG/WEBP/SVG y documentos estándar):
+    // Carga directa síncrona en Buffer para máxima compatibilidad, cero overhead y cero fallos de stream
+    if (stat.size <= 20 * 1024 * 1024) {
+      const fileBuffer = fsSync.readFileSync(absolutePath);
+      return new NextResponse(fileBuffer, {
+        status: 200,
+        headers: {
+          ...baseHeaders,
+          "Content-Length": stat.size.toString(),
+        },
+      });
+    }
 
-    return new NextResponse(webStream, {
+    // Para archivos masivos (>20 MB como PDFs masivos):
+    // Streaming nativo mediante Readable.toWeb con control de flujo
+    const fileStream = fsSync.createReadStream(absolutePath);
+    const webStream = Readable.toWeb(fileStream);
+
+    return new NextResponse(webStream as unknown as ReadableStream, {
       status: 200,
       headers: {
         ...baseHeaders,
@@ -158,15 +164,8 @@ export async function HEAD(
       return new NextResponse(null, { status: 400 });
     }
 
-    const safeSegments = segments
-      .map((s) => s.replace(/[^a-zA-Z0-9_.-]/g, ""))
-      .filter((s) => s !== ".." && s !== "." && s.length > 0);
-
-    const relativeSubpath = safeSegments.join(path.sep);
-    const baseDir = getBaseUploadDir();
-    let absolutePath = path.join(baseDir, "public", "uploads", relativeSubpath);
-
-    if (!fsSync.existsSync(absolutePath)) {
+    const absolutePath = resolveUploadFilePath(segments);
+    if (!absolutePath) {
       return new NextResponse(null, { status: 404 });
     }
 
@@ -187,4 +186,3 @@ export async function HEAD(
     return new NextResponse(null, { status: 500 });
   }
 }
-

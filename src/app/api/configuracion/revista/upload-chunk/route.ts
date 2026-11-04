@@ -187,9 +187,24 @@ export async function POST(request: Request) {
       });
     });
 
+    try {
+      await fs.chmod(primaryFilePath, 0o666);
+    } catch {}
+
+    // Copiar hacia carpeta uploads raíz (para Nginx)
+    const rootUploadDir = path.join(baseDir, "uploads", "revista");
+    try {
+      await fs.mkdir(rootUploadDir, { recursive: true, mode: 0o777 });
+      await fs.chmod(rootUploadDir, 0o777);
+      const rootFilePath = path.join(rootUploadDir, uniqueName);
+      await fs.copyFile(primaryFilePath, rootFilePath);
+      await fs.chmod(rootFilePath, 0o666);
+    } catch {}
+
     // Copiar hacia carpeta standalone
     try {
       await fs.copyFile(primaryFilePath, standaloneFilePath);
+      await fs.chmod(standaloneFilePath, 0o666);
     } catch {
       // Ignorar si no está en modo standalone
     }
