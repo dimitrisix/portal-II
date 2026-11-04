@@ -54,6 +54,7 @@ async function ensureRevistaTableExists() {
 // 1. Método GET: Listar revistas (Público o Admin con ?all=true)
 export async function GET(request: NextRequest) {
   try {
+    await ensureRevistaTableExists();
     const searchParams = request.nextUrl.searchParams;
     const all = searchParams.get("all") === "true";
     const format = searchParams.get("format");

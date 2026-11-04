@@ -44,6 +44,8 @@ function resolveUploadFilePath(segments: string[]): string | null {
     path.join(process.cwd(), "uploads", relativeSubpath),
     path.join("/var/www/portal", "public", "uploads", relativeSubpath),
     path.join("/var/www/portal", "uploads", relativeSubpath),
+    path.join("/home/tecnologia/portal", "public", "uploads", relativeSubpath),
+    path.join("/home/tecnologia/portal", "uploads", relativeSubpath),
     path.join(baseDir, ".next", "standalone", "public", "uploads", relativeSubpath),
     path.join(process.cwd(), ".next", "standalone", "public", "uploads", relativeSubpath),
   ];

@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 export function HeroSlider() {
   const { slides, recargarSlides } = useConfig();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [failedImages, setFailedImages] = useState<Record<string | number, boolean>>({});
 
   useEffect(() => {
     recargarSlides();
@@ -41,27 +42,54 @@ export function HeroSlider() {
       <div className="relative w-full h-[320px] sm:h-[420px] md:h-[500px] lg:h-[560px] flex items-center justify-center overflow-hidden">
         {slides.map((slide, index) => {
           const isActive = index === currentIndex;
+          const slideKey = slide.id || index;
+          const isFailed = failedImages[slideKey];
 
           return (
             <div
-              key={slide.id || index}
+              key={slideKey}
               className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ease-in-out overflow-hidden ${
                 isActive
                   ? "opacity-100 z-10"
                   : "opacity-0 z-0 pointer-events-none"
               }`}
             >
-              {/* Imagen llenando el 100% del alto y ancho del marco con zoom suave */}
-              <img
-                src={slide.imagenUrl}
-                alt={slide.titulo || "Banner Principal"}
-                className={`w-full h-full object-fill md:object-cover object-top sm:object-center block transform transition-transform ease-out will-change-transform ${
-                  isActive
-                    ? "scale-105 duration-7000"
-                    : "scale-100 duration-1000"
-                }`}
-                loading={index === 0 ? "eager" : "lazy"}
-              />
+              {!isFailed ? (
+                /* Imagen llenando el 100% del alto y ancho del marco con zoom suave */
+                <img
+                  src={slide.imagenUrl}
+                  alt={slide.titulo || "Banner Principal"}
+                  className={`w-full h-full object-fill md:object-cover object-top sm:object-center block transform transition-transform ease-out will-change-transform ${
+                    isActive
+                      ? "scale-105 duration-7000"
+                      : "scale-100 duration-1000"
+                  }`}
+                  loading={index === 0 ? "eager" : "lazy"}
+                  onError={() => {
+                    setFailedImages((prev) => ({ ...prev, [slideKey]: true }));
+                  }}
+                />
+              ) : (
+                /* Respaldo Institucional elegante cuando la imagen no está disponible */
+                <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-r from-[#082444] via-[#0c4078] to-[#0a3563] text-white text-center select-none">
+                  <div className="inline-block px-3 py-1 bg-[#e62020] text-white text-xs font-black uppercase tracking-widest rounded-full mb-3 shadow-md">
+                    FUNDAPROAL
+                  </div>
+                  {slide.lema && (
+                    <span className="text-xs sm:text-sm uppercase tracking-widest text-blue-200 font-bold mb-2">
+                      {slide.lema}
+                    </span>
+                  )}
+                  <h2 className="text-2xl sm:text-4xl font-extrabold max-w-3xl leading-tight">
+                    {slide.titulo || "Garantizando la soberanía alimentaria"}
+                  </h2>
+                  {slide.subtitulo && (
+                    <p className="text-sm sm:text-base text-blue-100 max-w-2xl mt-3 font-medium">
+                      {slide.subtitulo}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}

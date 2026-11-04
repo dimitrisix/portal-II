@@ -58,13 +58,20 @@ export async function GET(request: NextRequest) {
     const baseDir = getBaseUploadDir();
     let absoluteFilePath = path.join(baseDir, "public", safeSubpath);
 
-    if (!fs.existsSync(absoluteFilePath)) {
+    if (!fs.existsSync(/*turbopackIgnore: true*/ absoluteFilePath)) {
       const fallbackCwd = path.join(process.cwd(), "public", safeSubpath);
       const standalonePath = path.join(baseDir, ".next", "standalone", "public", safeSubpath);
-      if (fs.existsSync(fallbackCwd)) {
+      const varWwwPath = path.join("/var/www/portal", "public", safeSubpath);
+      const homeTecPath = path.join("/home/tecnologia/portal", "public", safeSubpath);
+
+      if (fs.existsSync(/*turbopackIgnore: true*/ fallbackCwd)) {
         absoluteFilePath = fallbackCwd;
-      } else if (fs.existsSync(standalonePath)) {
+      } else if (fs.existsSync(/*turbopackIgnore: true*/ standalonePath)) {
         absoluteFilePath = standalonePath;
+      } else if (fs.existsSync(/*turbopackIgnore: true*/ varWwwPath)) {
+        absoluteFilePath = varWwwPath;
+      } else if (fs.existsSync(/*turbopackIgnore: true*/ homeTecPath)) {
+        absoluteFilePath = homeTecPath;
       } else {
         return new NextResponse("El archivo físico del documento no existe en el servidor.", {
           status: 404,
@@ -72,7 +79,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const stat = fs.statSync(absoluteFilePath);
+    const stat = fs.statSync(/*turbopackIgnore: true*/ absoluteFilePath);
     const fileSize = stat.size;
     const range = request.headers.get("range");
 
@@ -103,7 +110,7 @@ export async function GET(request: NextRequest) {
       }
 
       const chunkLength = end - start + 1;
-      const fileStream = fs.createReadStream(absoluteFilePath, { start, end });
+      const fileStream = fs.createReadStream(/*turbopackIgnore: true*/ absoluteFilePath, { start, end });
 
       // Convertir Node stream a Web ReadableStream
       const webStream = new ReadableStream({
@@ -128,7 +135,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Solicitud sin rango: transmitir el archivo completo por fragmentos
-    const fileStream = fs.createReadStream(absoluteFilePath);
+    const fileStream = fs.createReadStream(/*turbopackIgnore: true*/ absoluteFilePath);
     const webStream = new ReadableStream({
       start(controller) {
         fileStream.on("data", (chunk) => controller.enqueue(chunk));

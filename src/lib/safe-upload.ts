@@ -25,6 +25,9 @@ export function getBaseUploadDir(): string {
   if (fsSync.existsSync("/var/www/portal/public")) {
     return "/var/www/portal";
   }
+  if (fsSync.existsSync("/home/tecnologia/portal/public")) {
+    return "/home/tecnologia/portal";
+  }
   return process.cwd();
 }
 

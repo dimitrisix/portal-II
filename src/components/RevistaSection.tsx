@@ -107,40 +107,9 @@ export function RevistaSection() {
                       alt={`Portada de ${titulo}`}
                       className="w-full h-full object-cover block"
                     />
-                  ) : pdfStreamUrl ? (
-                    /* Portada generada a partir de la primera hoja del archivo PDF */
-                    <div className="relative w-full h-full bg-slate-900 overflow-hidden flex items-center justify-center">
-                      {/* Fondo institucional mientras se carga el fragmento de la primera página */}
-                      <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center text-white/60 bg-gradient-to-br from-[#0c4078] to-[#082a52] pointer-events-none select-none">
-                        <BookOpen size={30} className="text-blue-300 animate-pulse mb-2" />
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-white line-clamp-2">
-                          {titulo}
-                        </span>
-                        <span className="text-[10px] text-blue-200 mt-1">Cargando portada...</span>
-                      </div>
-
-                      {/* Visor de la primera página del documento PDF sin barras ni controles */}
-                      <object
-                        data={`${pdfStreamUrl}#page=1&view=Fit&toolbar=0&navpanes=0&scrollbar=0`}
-                        type="application/pdf"
-                        className="relative z-5 w-full h-full border-0 pointer-events-none select-none object-cover"
-                      >
-                        <iframe
-                          src={`${pdfStreamUrl}#page=1&view=Fit&toolbar=0&navpanes=0&scrollbar=0`}
-                          className="relative z-5 w-full h-full border-0 pointer-events-none select-none"
-                          title={`Primera hoja (Portada) de ${titulo}`}
-                        />
-                      </object>
-
-                      {/* Lomo de la revista (Efecto de sombra y relieve 3D sobre la primera hoja) */}
-                      <div className="absolute inset-y-0 left-0 w-3.5 bg-gradient-to-r from-black/60 via-black/25 to-transparent pointer-events-none z-10" />
-
-                      {/* Borde sutil del libro */}
-                      <div className="absolute inset-0 border border-white/20 rounded-xl pointer-events-none z-10" />
-                    </div>
                   ) : (
-                    /* Portada institucional de respaldo */
-                    <div className="w-full h-full p-5 flex flex-col justify-between bg-gradient-to-br from-[#0c4078] via-[#082a52] to-[#04152a] text-white relative overflow-hidden">
+                    /* Portada institucional de diseño elegante y rendimiento instantáneo */
+                    <div className="w-full h-full p-5 flex flex-col justify-between bg-gradient-to-br from-[#0c4078] via-[#082a52] to-[#04152a] text-white relative overflow-hidden select-none">
                       <div className="relative z-10 space-y-1">
                         <div className="inline-block px-2.5 py-0.5 rounded-full bg-[#e62020] text-[10px] font-black uppercase tracking-wider shadow-xs">
                           FUNDAPROAL
@@ -154,19 +123,20 @@ export function RevistaSection() {
                         <div className="w-12 h-12 mx-auto rounded-2xl bg-white/10 backdrop-blur-xs flex items-center justify-center border border-white/20 shadow-inner">
                           <BookOpen size={24} className="text-white" />
                         </div>
-                        <h4 className="text-lg font-black tracking-tight text-white leading-tight uppercase line-clamp-2">
+                        <h4 className="text-base sm:text-lg font-black tracking-tight text-white leading-tight uppercase line-clamp-3">
                           {titulo}
                         </h4>
                       </div>
 
                       <div className="relative z-10 pt-3 border-t border-white/15 flex items-center justify-between text-[10px] text-slate-300">
                         <span className="font-semibold uppercase tracking-wider">
-                          Edición Digital
+                          {subtitulo || "Edición Digital"}
                         </span>
                         {fecha && <span>{fecha}</span>}
                       </div>
 
                       <div className="absolute inset-y-0 left-0 w-3 bg-gradient-to-r from-black/50 to-transparent pointer-events-none" />
+                      <div className="absolute inset-0 border border-white/20 rounded-xl pointer-events-none z-10" />
                     </div>
                   )}
 
@@ -346,19 +316,22 @@ export function RevistaSection() {
                             className="w-full h-full object-cover block group-hover:scale-105 transition-transform"
                           />
                         ) : (
-                          <div className="relative w-full h-full bg-slate-900 overflow-hidden flex items-center justify-center">
-                            <object
-                              data={`${streamItemUrl}#page=1&view=Fit&toolbar=0&navpanes=0&scrollbar=0`}
-                              type="application/pdf"
-                              className="w-full h-full border-0 pointer-events-none select-none"
-                            >
-                              <iframe
-                                src={`${streamItemUrl}#page=1&view=Fit&toolbar=0&navpanes=0&scrollbar=0`}
-                                className="w-full h-full border-0 pointer-events-none select-none"
-                                title={`Portada de ${edicion.titulo}`}
-                              />
-                            </object>
-                            <div className="absolute inset-y-0 left-0 w-2 bg-gradient-to-r from-black/50 to-transparent pointer-events-none" />
+                          <div className="w-full h-full p-2.5 flex flex-col justify-between bg-gradient-to-br from-[#0c4078] via-[#082a52] to-[#04152a] text-white relative overflow-hidden select-none text-left">
+                            <div className="space-y-0.5">
+                              <span className="inline-block px-1.5 py-0.5 rounded-xs bg-[#e62020] text-[8px] font-black uppercase tracking-wider">
+                                FUNDAPROAL
+                              </span>
+                            </div>
+                            <div className="my-auto text-center py-1">
+                              <BookOpen size={16} className="mx-auto text-blue-200 mb-1" />
+                              <p className="text-[10px] font-bold line-clamp-2 uppercase leading-tight">
+                                {edicion.titulo}
+                              </p>
+                            </div>
+                            <div className="text-[8px] text-blue-200 border-t border-white/10 pt-1 truncate">
+                              {edicion.fecha || "Edición Digital"}
+                            </div>
+                            <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-r from-black/50 to-transparent pointer-events-none" />
                           </div>
                         )}
 
