@@ -3,12 +3,27 @@ import { FooterAdminModal } from "@/components/admin/FooterAdminModal";
 import { PanelBottom } from "lucide-react";
 import { verifyPageAuth } from "@/lib/auth-server";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Pie de Página | Panel Administrativo",
 };
 
 export default async function FooterDashboardPage() {
-  await verifyPageAuth("pie_pagina.manage");
+  try {
+    await verifyPageAuth("pie_pagina.manage");
+  } catch (err: unknown) {
+    const errorMsg = (err as Error)?.message || "";
+    // Permitir redirecciones legítimas de Next.js (NEXT_REDIRECT)
+    if (
+      errorMsg === "NEXT_REDIRECT" ||
+      (err as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")
+    ) {
+      throw err;
+    }
+    console.error("Error verificando autenticación en FooterDashboardPage:", err);
+  }
+
   return (
     <div className="w-full p-6 md:p-8 space-y-6 text-left">
       <div className="pb-4 border-b border-slate-200">

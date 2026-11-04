@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useConfig } from "@/context/ConfigContext";
-import { FooterConfigData } from "@/types";
 import {
   UploadCloud,
   Check,
@@ -13,36 +12,30 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 
-interface FooterAdminFormProps {
-  initialConfig: FooterConfigData | null;
-  onSaved: () => Promise<void>;
-  notificarCambio: () => void;
-}
+export function FooterAdminModal() {
+  const { footerConfig, recargarFooterConfig, notificarCambioFooter } =
+    useConfig();
 
-function FooterAdminForm({
-  initialConfig,
-  onSaved,
-  notificarCambio,
-}: FooterAdminFormProps) {
   const [archivoSeleccionado, setArchivoSeleccionado] = useState<File | null>(
     null,
   );
   const [previewUrl, setPreviewUrl] = useState<string>(
-    initialConfig?.imagenUrl || "",
+    footerConfig?.imagenUrl || "/images/cintillo-footer.png",
   );
   const [visible, setVisible] = useState(
-    initialConfig ? initialConfig.visible !== false : true,
+    footerConfig ? footerConfig.visible !== false : true,
   );
-
-  React.useEffect(() => {
-    if (initialConfig?.imagenUrl && !archivoSeleccionado) {
-      setPreviewUrl(initialConfig.imagenUrl);
-    }
-  }, [initialConfig?.imagenUrl, archivoSeleccionado]);
 
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (footerConfig && !archivoSeleccionado) {
+      setPreviewUrl(footerConfig.imagenUrl || "/images/cintillo-footer.png");
+      setVisible(footerConfig.visible !== false);
+    }
+  }, [footerConfig, archivoSeleccionado]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -69,7 +62,7 @@ function FooterAdminForm({
     setMensaje(null);
 
     try {
-      let finalImageUrl = initialConfig?.imagenUrl || "";
+      let finalImageUrl = footerConfig?.imagenUrl || "";
 
       // 1. Si seleccionó un archivo nuevo desde el equipo, subirlo
       if (archivoSeleccionado) {
@@ -84,7 +77,7 @@ function FooterAdminForm({
         const uploadData = await uploadRes.json();
         if (!uploadRes.ok)
           throw new Error(uploadData.error || "Error al subir imagen");
-        finalImageUrl = uploadData.footer.imagenUrl;
+        finalImageUrl = uploadData.footer?.imagenUrl || finalImageUrl;
       }
 
       // 2. Guardar configuración completa en base de datos
@@ -93,9 +86,9 @@ function FooterAdminForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imagenUrl: finalImageUrl,
-          direccion: initialConfig?.direccion,
-          rif: initialConfig?.rif,
-          textoCopyright: initialConfig?.textoCopyright,
+          direccion: footerConfig?.direccion,
+          rif: footerConfig?.rif,
+          textoCopyright: footerConfig?.textoCopyright,
           visible,
         }),
       });
@@ -104,8 +97,8 @@ function FooterAdminForm({
       if (!resConfig.ok)
         throw new Error(configData.error || "Error al guardar");
 
-      await onSaved();
-      notificarCambio();
+      await recargarFooterConfig();
+      notificarCambioFooter();
 
       setArchivoSeleccionado(null);
       setPreviewUrl(`${finalImageUrl}?t=${Date.now()}`);
@@ -144,6 +137,13 @@ function FooterAdminForm({
                   src={previewUrl}
                   alt="Cintillo actual"
                   className="max-h-full max-w-full object-contain"
+                  onError={(e) => {
+                    // Si falla con timestamp o sin él, reintentar una vez sin querystring
+                    const target = e.currentTarget;
+                    if (target.src.includes("?t=")) {
+                      target.src = target.src.split("?t=")[0];
+                    }
+                  }}
                 />
               </div>
 
@@ -221,24 +221,6 @@ function FooterAdminForm({
         </button>
       </form>
     </div>
-  );
-}
-
-export function FooterAdminModal() {
-  const { footerConfig, recargarFooterConfig, notificarCambioFooter } =
-    useConfig();
-
-  const configKey = footerConfig
-    ? `${footerConfig.imagenUrl || ""}-${footerConfig.visible}`
-    : "pending";
-
-  return (
-    <FooterAdminForm
-      key={configKey}
-      initialConfig={footerConfig}
-      onSaved={recargarFooterConfig}
-      notificarCambio={notificarCambioFooter}
-    />
   );
 }
 
