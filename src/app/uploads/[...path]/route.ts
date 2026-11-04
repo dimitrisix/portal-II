@@ -90,6 +90,7 @@ export async function GET(
       "Accept-Ranges": "bytes",
       "Cache-Control": "public, max-age=31536000, immutable",
       "X-Content-Type-Options": "nosniff",
+      "Access-Control-Allow-Origin": "*",
     };
 
     // Manejo de peticiones de rango HTTP (ej: reproductores o visores PDF de navegador)
@@ -129,7 +130,7 @@ export async function GET(
     // Carga directa síncrona en Buffer para máxima compatibilidad, cero overhead y cero fallos de stream
     if (stat.size <= 20 * 1024 * 1024) {
       const fileBuffer = fsSync.readFileSync(/*turbopackIgnore: true*/ absolutePath);
-      return new NextResponse(fileBuffer, {
+      return new NextResponse(new Uint8Array(fileBuffer), {
         status: 200,
         headers: {
           ...baseHeaders,
