@@ -18,7 +18,7 @@ interface MapaVenezuelaProps {
   ubicaciones: Ubicacion[];
 }
 
-const emptySubscribe = () => () => {};
+const emptySubscribe = () => () => { };
 
 export default function MapaVenezuela({ ubicaciones }: MapaVenezuelaProps) {
   const isMounted = useSyncExternalStore(
