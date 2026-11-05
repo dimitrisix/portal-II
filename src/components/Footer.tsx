@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useSyncExternalStore } from "react";
 import { useConfig } from "@/context/ConfigContext";
 
-const emptySubscribe = () => () => {};
+const emptySubscribe = () => () => { };
 
 export function Footer() {
   const { footerConfig, recargarFooterConfig } = useConfig();
@@ -12,27 +12,26 @@ export function Footer() {
     () => true,
     () => false,
   );
-  const [currentSrc, setCurrentSrc] = useState<string>(
-    footerConfig?.imagenUrl || "/images/cintillo-footer.png",
-  );
+  const [fallbackToDefault, setFallbackToDefault] = useState(false);
   const [isFailed, setIsFailed] = useState(false);
 
   useEffect(() => {
     recargarFooterConfig();
   }, [recargarFooterConfig]);
 
-  useEffect(() => {
-    setCurrentSrc(footerConfig?.imagenUrl || "/images/cintillo-footer.png");
-    setIsFailed(false);
-  }, [footerConfig?.imagenUrl]);
-
   if (!mounted || footerConfig?.visible === false) {
     return null;
   }
 
+  const configuredUrl =
+    footerConfig?.imagenUrl?.trim() || "/images/cintillo-footer.png";
+  const currentSrc = fallbackToDefault
+    ? "/images/cintillo-footer.png"
+    : configuredUrl;
+
   const handleError = () => {
-    if (currentSrc !== "/images/cintillo-footer.png") {
-      setCurrentSrc("/images/cintillo-footer.png");
+    if (!fallbackToDefault && configuredUrl !== "/images/cintillo-footer.png") {
+      setFallbackToDefault(true);
     } else {
       setIsFailed(true);
     }
@@ -46,7 +45,7 @@ export function Footer() {
         <div className="w-full max-w-[1400px] min-h-[56px] sm:min-h-[64px] md:h-20 flex items-center justify-center">
           {!isFailed ? (
             <img
-              key={currentSrc}
+              key={configuredUrl}
               src={currentSrc}
               alt={
                 footerConfig?.altTexto ||

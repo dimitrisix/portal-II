@@ -10,19 +10,7 @@ export const metadata = {
 };
 
 export default async function FooterDashboardPage() {
-  try {
-    await verifyPageAuth("pie_pagina.manage");
-  } catch (err: unknown) {
-    const errorMsg = (err as Error)?.message || "";
-    // Permitir redirecciones legítimas de Next.js (NEXT_REDIRECT)
-    if (
-      errorMsg === "NEXT_REDIRECT" ||
-      (err as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")
-    ) {
-      throw err;
-    }
-    console.error("Error verificando autenticación en FooterDashboardPage:", err);
-  }
+  await verifyPageAuth("pie_pagina.manage");
 
   return (
     <div className="w-full p-6 md:p-8 space-y-6 text-left">

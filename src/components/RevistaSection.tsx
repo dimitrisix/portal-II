@@ -290,9 +290,6 @@ export function RevistaSection() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5">
                 {listaActivas.map((edicion) => {
                   const esActiva = edicion.id === revistaDestacada.id;
-                  const streamItemUrl = `/api/revista/pdf?file=${encodeURIComponent(
-                    edicion.archivoUrl || "",
-                  )}`;
 
                   return (
                     <div

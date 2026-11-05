@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { useConfig } from "@/context/ConfigContext";
 import {
   UploadCloud,
@@ -20,32 +20,30 @@ export function FooterAdminModal() {
   const [archivoSeleccionado, setArchivoSeleccionado] = useState<File | null>(
     null,
   );
-  const [previewUrl, setPreviewUrl] = useState<string>(
-    footerConfig?.imagenUrl || "/images/cintillo-footer.png",
-  );
-  const [visible, setVisible] = useState(
-    footerConfig ? footerConfig.visible !== false : true,
-  );
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+  const [localVisible, setLocalVisible] = useState<boolean | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (footerConfig && !archivoSeleccionado) {
-      setPreviewUrl(footerConfig.imagenUrl || "/images/cintillo-footer.png");
-      setVisible(footerConfig.visible !== false);
-      setImgError(false);
-    }
-  }, [footerConfig, archivoSeleccionado]);
+  const previewUrl =
+    previewBlobUrl || footerConfig?.imagenUrl || "/images/cintillo-footer.png";
+  const visible =
+    localVisible !== null
+      ? localVisible
+      : footerConfig
+        ? footerConfig.visible !== false
+        : true;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setArchivoSeleccionado(file);
-      setPreviewUrl(URL.createObjectURL(file));
+      setPreviewBlobUrl(URL.createObjectURL(file));
       setMensaje(null);
+      setImgError(false);
     }
   };
 
@@ -54,8 +52,9 @@ export function FooterAdminModal() {
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith("image/")) {
       setArchivoSeleccionado(file);
-      setPreviewUrl(URL.createObjectURL(file));
+      setPreviewBlobUrl(URL.createObjectURL(file));
       setMensaje(null);
+      setImgError(false);
     }
   };
 
@@ -104,7 +103,8 @@ export function FooterAdminModal() {
       notificarCambioFooter();
 
       setArchivoSeleccionado(null);
-      setPreviewUrl(`${finalImageUrl}?t=${Date.now()}`);
+      setPreviewBlobUrl(null);
+      setImgError(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
       setMensaje("¡Pie de página actualizado y sincronizado en vivo!");
     } catch (err: unknown) {
@@ -200,7 +200,7 @@ export function FooterAdminModal() {
         <div>
           <button
             type="button"
-            onClick={() => setVisible(!visible)}
+            onClick={() => setLocalVisible(!visible)}
             className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-bold border transition cursor-pointer ${
               visible
                 ? "bg-emerald-50 text-emerald-700 border-emerald-300"

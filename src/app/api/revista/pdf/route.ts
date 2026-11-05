@@ -56,27 +56,41 @@ export async function GET(request: NextRequest) {
     // Prevención estricta de Path Traversal
     const safeSubpath = path.normalize(filePathParam).replace(/^(\.\.[\/\\])+/, "").replace(/^[\\\/]+/, "");
     const baseDir = getBaseUploadDir();
-    let absoluteFilePath = path.join(baseDir, "public", safeSubpath);
 
-    if (!fs.existsSync(/*turbopackIgnore: true*/ absoluteFilePath)) {
-      const fallbackCwd = path.join(process.cwd(), "public", safeSubpath);
-      const standalonePath = path.join(baseDir, ".next", "standalone", "public", safeSubpath);
-      const varWwwPath = path.join("/var/www/portal", "public", safeSubpath);
-      const homeTecPath = path.join("/home/tecnologia/portal", "public", safeSubpath);
+    const candidatePaths = [
+      path.join(baseDir, "public", safeSubpath),
+      path.join(baseDir, safeSubpath),
+      path.join(process.cwd(), "public", safeSubpath),
+      path.join(process.cwd(), safeSubpath),
+      path.join("/var/www/portal", "public", safeSubpath),
+      path.join("/var/www/portal", safeSubpath),
+      path.join("/var/www/portal-II", "public", safeSubpath),
+      path.join("/var/www/portal-II", safeSubpath),
+      path.join("/home/tecnologia/portal", "public", safeSubpath),
+      path.join("/home/tecnologia/portal", safeSubpath),
+      path.join("/home/tecnologia/portal-II", "public", safeSubpath),
+      path.join("/home/tecnologia/portal-II", safeSubpath),
+      path.join(baseDir, ".next", "standalone", "public", safeSubpath),
+      path.join(process.cwd(), ".next", "standalone", "public", safeSubpath),
+    ];
 
-      if (fs.existsSync(/*turbopackIgnore: true*/ fallbackCwd)) {
-        absoluteFilePath = fallbackCwd;
-      } else if (fs.existsSync(/*turbopackIgnore: true*/ standalonePath)) {
-        absoluteFilePath = standalonePath;
-      } else if (fs.existsSync(/*turbopackIgnore: true*/ varWwwPath)) {
-        absoluteFilePath = varWwwPath;
-      } else if (fs.existsSync(/*turbopackIgnore: true*/ homeTecPath)) {
-        absoluteFilePath = homeTecPath;
-      } else {
-        return new NextResponse("El archivo físico del documento no existe en el servidor.", {
-          status: 404,
-        });
-      }
+    let absoluteFilePath: string | null = null;
+    for (const candidate of candidatePaths) {
+      try {
+        if (fs.existsSync(/*turbopackIgnore: true*/ candidate)) {
+          const statCandidate = fs.statSync(/*turbopackIgnore: true*/ candidate);
+          if (statCandidate.isFile()) {
+            absoluteFilePath = candidate;
+            break;
+          }
+        }
+      } catch {}
+    }
+
+    if (!absoluteFilePath) {
+      return new NextResponse("El archivo físico del documento no existe en el servidor.", {
+        status: 404,
+      });
     }
 
     const stat = fs.statSync(/*turbopackIgnore: true*/ absoluteFilePath);

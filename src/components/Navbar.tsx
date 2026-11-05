@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { Menu, X, ChevronDown, Target, Network } from "lucide-react";
 import { useConfig } from "@/context/ConfigContext";
@@ -46,12 +46,6 @@ export function Navbar() {
   const [fallbackLogo, setFallbackLogo] = useState<string | null>(null);
   const [mostrarTexto, setMostrarTexto] = useState(false);
 
-  // Al actualizarse el logo en tiempo real, restablecer el estado para probar la nueva imagen
-  useEffect(() => {
-    setFallbackLogo(null);
-    setMostrarTexto(false);
-  }, [logoConfigurado]);
-
   const currentLogo = fallbackLogo || logoConfigurado;
 
   return (
@@ -62,7 +56,7 @@ export function Navbar() {
               LOGOTIPO ADMINISTRABLE
               ========================================= */}
           <div className="flex-shrink-0 flex items-center min-w-[150px]">
-            <Link href="/">
+            <Link href="/" key={logoConfigurado}>
               {!mostrarTexto ? (
                 <img
                   key={currentLogo}
