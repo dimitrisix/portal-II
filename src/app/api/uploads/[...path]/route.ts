@@ -27,9 +27,14 @@ const MIME_TYPES: Record<string, string> = {
 function resolveUploadFilePath(segments: string[]): string | null {
   if (!segments || segments.length === 0) return null;
 
-  // Prevención estricta de Path Traversal
+  // Prevención estricta de Path Traversal y neutralización de query params (?t=...)
   const safeSegments = segments
-    .map((s) => s.replace(/[^a-zA-Z0-9_.-]/g, ""))
+    .map((s) =>
+      s
+        .split("?")[0]
+        .split("#")[0]
+        .replace(/[^a-zA-Z0-9_.-]/g, ""),
+    )
     .filter((s) => s !== ".." && s !== "." && s.length > 0);
 
   if (safeSegments.length === 0) return null;

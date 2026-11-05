@@ -216,11 +216,18 @@ export async function processAndSaveImage(
   const rootFilePath = path.join(rootUploadDir, uniqueName);
   const standaloneFilePath = path.join(standaloneDir, uniqueName);
 
+  let primaryWritten = false;
+
   // 1. Escribir en almacenamiento principal (public/uploads/...)
-  await fs.writeFile(primaryFilePath, buffer);
   try {
-    await fs.chmod(primaryFilePath, 0o666);
-  } catch {}
+    await fs.writeFile(primaryFilePath, buffer);
+    try {
+      await fs.chmod(primaryFilePath, 0o666);
+    } catch {}
+    primaryWritten = true;
+  } catch (err) {
+    console.error("[UPLOAD WRITE ERROR primaryFilePath]:", err);
+  }
 
   // 2. Escribir copia en raíz de uploads (para Nginx con root /var/www/portal)
   try {
@@ -233,6 +240,14 @@ export async function processAndSaveImage(
     await fs.writeFile(standaloneFilePath, buffer);
     await fs.chmod(standaloneFilePath, 0o666);
   } catch {}
+
+  if (!primaryWritten && !fsSync.existsSync(rootFilePath)) {
+    return {
+      success: false,
+      error:
+        "Error de permisos en el servidor: no se pudo escribir el archivo. Ejecuta en el servidor: sudo chmod -R 777 public/uploads uploads",
+    };
+  }
 
   const publicUrl = cleanSubfolder
     ? `/uploads/${cleanSubfolder}/${uniqueName}`

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useConfig } from "@/context/ConfigContext";
-import { Check, Image as ImageIcon, UploadCloud } from "lucide-react";
+import { Check, Image as ImageIcon, UploadCloud, AlertTriangle } from "lucide-react";
 
 export function LogoAdminModal() {
   const { logo, actualizarLogo, recargarLogo } = useConfig();
@@ -42,17 +42,21 @@ export function LogoAdminModal() {
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Error al guardar");
-
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Error al guardar");
+      }
+
       actualizarLogo(data.logo);
       setMensaje("¡Logo actualizado con éxito!");
       await recargarLogo();
 
       setPreview(null);
       setSelectedFile(null);
-    } catch {
-      setMensaje("Ocurrió un error al subir el logo");
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Ocurrió un error al subir el logo";
+      setMensaje(msg);
     } finally {
       setLoading(false);
     }
@@ -112,8 +116,23 @@ export function LogoAdminModal() {
         </div>
 
         {mensaje && (
-          <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded text-xs font-medium text-emerald-700 flex items-center gap-1.5">
-            <Check size={15} /> {mensaje}
+          <div
+            className={`p-2.5 border rounded text-xs font-medium flex items-center gap-1.5 ${
+              mensaje.toLowerCase().includes("error") ||
+              mensaje.toLowerCase().includes("falló") ||
+              mensaje.toLowerCase().includes("denegado")
+                ? "bg-red-50 border-red-200 text-red-700"
+                : "bg-emerald-50 border-emerald-200 text-emerald-700"
+            }`}
+          >
+            {mensaje.toLowerCase().includes("error") ||
+            mensaje.toLowerCase().includes("falló") ||
+            mensaje.toLowerCase().includes("denegado") ? (
+              <AlertTriangle size={15} className="text-red-500 shrink-0" />
+            ) : (
+              <Check size={15} className="text-emerald-600 shrink-0" />
+            )}
+            <span>{mensaje}</span>
           </div>
         )}
 
