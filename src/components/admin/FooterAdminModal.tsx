@@ -28,12 +28,14 @@ export function FooterAdminModal() {
 
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [imgError, setImgError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (footerConfig && !archivoSeleccionado) {
       setPreviewUrl(footerConfig.imagenUrl || "/images/cintillo-footer.png");
       setVisible(footerConfig.visible !== false);
+      setImgError(false);
     }
   }, [footerConfig, archivoSeleccionado]);
 
@@ -133,18 +135,26 @@ export function FooterAdminModal() {
           {previewUrl && !archivoSeleccionado ? (
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="w-full sm:max-w-md h-20 bg-white border border-slate-200 rounded-lg p-2 flex items-center justify-center overflow-hidden">
-                <img
-                  src={previewUrl}
-                  alt="Cintillo actual"
-                  className="max-h-full max-w-full object-contain"
-                  onError={(e) => {
-                    // Si falla con timestamp o sin él, reintentar una vez sin querystring
-                    const target = e.currentTarget;
-                    if (target.src.includes("?t=")) {
-                      target.src = target.src.split("?t=")[0];
-                    }
-                  }}
-                />
+                {!imgError ? (
+                  <img
+                    src={previewUrl}
+                    alt="Cintillo actual"
+                    className="max-h-full max-w-full object-contain"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (target.src.includes("?t=")) {
+                        target.src = target.src.split("?t=")[0];
+                      } else {
+                        setImgError(true);
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="flex items-center gap-2 text-slate-400 text-xs italic">
+                    <ImageIcon size={18} className="text-[#0c4078]" />
+                    <span>Cintillo guardado ({previewUrl.split("/").pop()})</span>
+                  </div>
+                )}
               </div>
 
               <button

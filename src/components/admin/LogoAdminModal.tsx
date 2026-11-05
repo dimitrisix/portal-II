@@ -10,11 +10,13 @@ export function LogoAdminModal() {
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      setLogoError(false);
 
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -73,16 +75,21 @@ export function LogoAdminModal() {
           </label>
 
           <div className="h-28 w-full bg-slate-50 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center p-4">
-            {imagenActual ? (
+            {imagenActual && !logoError ? (
               <img
                 src={imagenActual}
                 alt="Vista previa del logo"
                 className="max-h-20 w-auto max-w-full object-contain filter drop-shadow-sm"
+                onError={() => {
+                  if (imagenActual !== "/logo.png") {
+                    setLogoError(true);
+                  }
+                }}
               />
             ) : (
               <div className="flex flex-col items-center justify-center text-slate-400 gap-1 text-xs">
                 <ImageIcon size={24} />
-                <span>Sin imagen cargada</span>
+                <span>Logo Institucional ({imagenActual ? "Cargado" : "Por defecto"})</span>
               </div>
             )}
           </div>

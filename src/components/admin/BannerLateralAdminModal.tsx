@@ -130,10 +130,17 @@ export function BannerLateralAdminModal() {
               <div className="flex items-center gap-4">
                 <div className="w-20 h-20 bg-white border border-slate-200 rounded-lg p-1.5 flex items-center justify-center shrink-0">
                   <img
-                    // ¡AQUÍ ESTÁ LA CORRECCIÓN! Eliminamos el Date.now()
                     src={previewUrl}
                     alt="Ilustración actual"
                     className="max-h-full max-w-full object-contain"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (target.src.includes("?t=")) {
+                        target.src = target.src.split("?t=")[0];
+                      } else if (!target.src.includes("silueta-madre.png")) {
+                        target.src = "/images/silueta-madre.png";
+                      }
+                    }}
                   />
                 </div>
                 <div>

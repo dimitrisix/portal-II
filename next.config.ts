@@ -56,15 +56,15 @@ const securityHeaders = [
   {
     key: "Content-Security-Policy",
     value: `
-      default-src 'self' https://*.fundaproal.gob.ve;
-      script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.fundaproal.gob.ve https://www.youtube.com https://s.ytimg.com;
+      default-src 'self' https://fundaproal.gob.ve https://*.fundaproal.gob.ve;
+      script-src 'self' 'unsafe-eval' 'unsafe-inline' https://fundaproal.gob.ve https://*.fundaproal.gob.ve https://www.youtube.com https://s.ytimg.com;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' data: https://fonts.gstatic.com;
-      img-src 'self' data: blob: https://*.fundaproal.gob.ve https://*.tile.openstreetmap.org https://img.youtube.com https://i.ytimg.com https://upload.wikimedia.org;
+      img-src 'self' data: blob: https://fundaproal.gob.ve https://*.fundaproal.gob.ve https://*.tile.openstreetmap.org https://img.youtube.com https://i.ytimg.com https://upload.wikimedia.org;
       frame-src 'self' blob: data: https://www.youtube.com https://www.youtube-nocookie.com https://www.instagram.com;
-      connect-src 'self' blob: data: https://*.fundaproal.gob.ve https://www.youtube.com;
-      frame-ancestors 'self' https://*.fundaproal.gob.ve;
-      form-action 'self' https://*.fundaproal.gob.ve;
+      connect-src 'self' blob: data: https://fundaproal.gob.ve https://*.fundaproal.gob.ve https://www.youtube.com;
+      frame-ancestors 'self' https://fundaproal.gob.ve https://*.fundaproal.gob.ve;
+      form-action 'self' https://fundaproal.gob.ve https://*.fundaproal.gob.ve;
       base-uri 'self';
       object-src 'self' blob: data:;
     `
