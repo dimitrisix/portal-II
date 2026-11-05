@@ -125,10 +125,10 @@ export function LogoAdminModal() {
         {mensaje && (
           <div
             className={`p-2.5 border rounded text-xs font-medium flex items-center gap-1.5 ${mensaje.toLowerCase().includes("error") ||
-                mensaje.toLowerCase().includes("falló") ||
-                mensaje.toLowerCase().includes("denegado")
-                ? "bg-red-50 border-red-200 text-red-700"
-                : "bg-emerald-50 border-emerald-200 text-emerald-700"
+              mensaje.toLowerCase().includes("falló") ||
+              mensaje.toLowerCase().includes("denegado")
+              ? "bg-red-50 border-red-200 text-red-700"
+              : "bg-emerald-50 border-emerald-200 text-emerald-700"
               }`}
           >
             {mensaje.toLowerCase().includes("error") ||
