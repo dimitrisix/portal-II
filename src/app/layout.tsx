@@ -22,6 +22,7 @@ export default async function RootLayout({
   return (
     <html lang="es">
       <head>
+        <link rel="stylesheet" href="/leaflet.css" />
         {/* Anti-Clickjacking / Anti-Cloning Framebuster en tiempo de ejecución */}
         <script
           dangerouslySetInnerHTML={{

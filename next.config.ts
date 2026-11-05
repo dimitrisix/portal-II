@@ -47,24 +47,24 @@ const securityHeaders = [
     key: "Cross-Origin-Opener-Policy",
     value: "same-origin-allow-popups",
   },
-  // 10. Bloqueo de lectura cruzada de recursos no autorizados (CORP same-site para compatibilidad con subdominios institucionales)
+  // 10. Bloqueo de lectura cruzada de recursos no autorizados (Permisivo para imágenes y recursos públicos institucionales)
   {
     key: "Cross-Origin-Resource-Policy",
-    value: "same-site",
+    value: "cross-origin",
   },
-  // 11. Content Security Policy (CSP): Delimita las fuentes legítimas de recursos permitiendo visores PDF y subdominios institucionales
+  // 11. Content Security Policy (CSP): Delimita las fuentes legítimas de recursos permitiendo visores PDF, subdominios institucionales e imágenes
   {
     key: "Content-Security-Policy",
     value: `
-      default-src 'self' https://fundaproal.gob.ve https://*.fundaproal.gob.ve;
-      script-src 'self' 'unsafe-eval' 'unsafe-inline' https://fundaproal.gob.ve https://*.fundaproal.gob.ve https://www.youtube.com https://s.ytimg.com;
+      default-src 'self' http: https: data: blob:;
+      script-src 'self' 'unsafe-eval' 'unsafe-inline' http: https: https://www.youtube.com https://s.ytimg.com;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' data: https://fonts.gstatic.com;
-      img-src 'self' data: blob: https://fundaproal.gob.ve https://*.fundaproal.gob.ve https://*.tile.openstreetmap.org https://img.youtube.com https://i.ytimg.com https://upload.wikimedia.org;
+      img-src 'self' data: blob: http: https: https://*.tile.openstreetmap.org https://img.youtube.com https://i.ytimg.com https://upload.wikimedia.org;
       frame-src 'self' blob: data: https://www.youtube.com https://www.youtube-nocookie.com https://www.instagram.com;
-      connect-src 'self' blob: data: https://fundaproal.gob.ve https://*.fundaproal.gob.ve https://www.youtube.com;
-      frame-ancestors 'self' https://fundaproal.gob.ve https://*.fundaproal.gob.ve;
-      form-action 'self' https://fundaproal.gob.ve https://*.fundaproal.gob.ve;
+      connect-src 'self' blob: data: http: https:;
+      frame-ancestors 'self' http: https:;
+      form-action 'self' http: https:;
       base-uri 'self';
       object-src 'self' blob: data:;
     `
@@ -98,7 +98,19 @@ const uploadSecurityHeaders = [
   {
     key: "Content-Security-Policy",
     value:
-      "default-src 'self' blob: data:; style-src 'unsafe-inline'; img-src 'self' data: blob:; object-src 'self' blob: data:; frame-ancestors 'self';",
+      "default-src 'self' blob: data:; style-src 'unsafe-inline'; img-src 'self' data: blob: *; object-src 'self' blob: data:; frame-ancestors 'self';",
+  },
+  {
+    key: "Access-Control-Allow-Origin",
+    value: "*",
+  },
+  {
+    key: "Access-Control-Allow-Methods",
+    value: "GET, HEAD, OPTIONS",
+  },
+  {
+    key: "Cross-Origin-Resource-Policy",
+    value: "cross-origin",
   },
   {
     key: "X-Frame-Options",
@@ -142,7 +154,7 @@ const nextConfig: NextConfig = {
 
   // IPs y orígenes permitidos en desarrollo
   allowedDevOrigins: [
-    "192.168.0.11",
+    "192.168.0.18",
     "localhost:3000",
     "10.65.101.57",
     "10.48.1.230",

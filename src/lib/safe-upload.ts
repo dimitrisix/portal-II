@@ -18,17 +18,27 @@ const ALLOWED_MIME_TYPES: Record<string, string> = {
 
 /**
  * Obtiene el directorio base de la aplicación.
- * Si detecta la ruta del entorno de producción Linux (/var/www/portal/public),
- * la utiliza de forma absoluta independientemente del directorio actual del proceso.
+ * Prioriza el directorio de trabajo del proceso en ejecución (process.cwd()) si contiene 'public',
+ * o verifica las rutas habituales del entorno de producción Linux (/var/www/portal, /var/www/portal-II).
  */
 export function getBaseUploadDir(): string {
+  const cwd = process.cwd();
+  if (fsSync.existsSync(path.join(cwd, "public"))) {
+    return cwd;
+  }
   if (fsSync.existsSync("/var/www/portal/public")) {
     return "/var/www/portal";
+  }
+  if (fsSync.existsSync("/var/www/portal-II/public")) {
+    return "/var/www/portal-II";
   }
   if (fsSync.existsSync("/home/tecnologia/portal/public")) {
     return "/home/tecnologia/portal";
   }
-  return process.cwd();
+  if (fsSync.existsSync("/home/tecnologia/portal-II/public")) {
+    return "/home/tecnologia/portal-II";
+  }
+  return cwd;
 }
 
 /**

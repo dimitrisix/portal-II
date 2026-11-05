@@ -80,8 +80,11 @@ export function LogoAdminModal() {
                 src={imagenActual}
                 alt="Vista previa del logo"
                 className="max-h-20 w-auto max-w-full object-contain filter drop-shadow-sm"
-                onError={() => {
-                  if (imagenActual !== "/logo.png") {
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (!target.src.includes("/images/logo-fundaproal.png")) {
+                    target.src = "/images/logo-fundaproal.png";
+                  } else {
                     setLogoError(true);
                   }
                 }}

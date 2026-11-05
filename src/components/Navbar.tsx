@@ -70,10 +70,16 @@ export function Navbar() {
                   alt="Logo FUNDAPROAL"
                   className="h-12 md:h-16 w-auto object-contain transition-opacity duration-300"
                   onError={() => {
-                    if (fallbackLogo === null) {
-                      setFallbackLogo("/logo.png");
-                    } else if (fallbackLogo === "/logo.png") {
+                    if (
+                      currentLogo !== "/images/logo-fundaproal.png" &&
+                      fallbackLogo !== "/images/logo-fundaproal.png"
+                    ) {
                       setFallbackLogo("/images/logo-fundaproal.png");
+                    } else if (
+                      currentLogo !== "/logo.png" &&
+                      fallbackLogo !== "/logo.png"
+                    ) {
+                      setFallbackLogo("/logo.png");
                     } else {
                       setMostrarTexto(true);
                     }

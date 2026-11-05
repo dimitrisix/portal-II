@@ -34,7 +34,15 @@ function resolveUploadFilePath(segments: string[]): string | null {
 
   if (safeSegments.length === 0) return null;
 
-  const relativeSubpath = path.join(...safeSegments);
+  // Si el primer segmento es "uploads", normalizarlo para evitar duplicación
+  const normalizedSegments =
+    safeSegments[0]?.toLowerCase() === "uploads"
+      ? safeSegments.slice(1)
+      : safeSegments;
+
+  if (normalizedSegments.length === 0) return null;
+
+  const relativeSubpath = path.join(...normalizedSegments);
   const baseDir = getBaseUploadDir();
 
   const candidatePaths = [
@@ -44,8 +52,12 @@ function resolveUploadFilePath(segments: string[]): string | null {
     path.join(process.cwd(), "uploads", relativeSubpath),
     path.join("/var/www/portal", "public", "uploads", relativeSubpath),
     path.join("/var/www/portal", "uploads", relativeSubpath),
+    path.join("/var/www/portal-II", "public", "uploads", relativeSubpath),
+    path.join("/var/www/portal-II", "uploads", relativeSubpath),
     path.join("/home/tecnologia/portal", "public", "uploads", relativeSubpath),
     path.join("/home/tecnologia/portal", "uploads", relativeSubpath),
+    path.join("/home/tecnologia/portal-II", "public", "uploads", relativeSubpath),
+    path.join("/home/tecnologia/portal-II", "uploads", relativeSubpath),
     path.join(baseDir, ".next", "standalone", "public", "uploads", relativeSubpath),
     path.join(process.cwd(), ".next", "standalone", "public", "uploads", relativeSubpath),
   ];
@@ -91,6 +103,8 @@ export async function GET(
       "Cache-Control": "public, max-age=31536000, immutable",
       "X-Content-Type-Options": "nosniff",
       "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+      "Cross-Origin-Resource-Policy": "cross-origin",
     };
 
     // Manejo de peticiones de rango HTTP (ej: reproductores o visores PDF de navegador)

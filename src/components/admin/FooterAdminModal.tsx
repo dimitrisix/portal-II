@@ -142,8 +142,8 @@ export function FooterAdminModal() {
                     className="max-h-full max-w-full object-contain"
                     onError={(e) => {
                       const target = e.currentTarget;
-                      if (target.src.includes("?t=")) {
-                        target.src = target.src.split("?t=")[0];
+                      if (!target.src.includes("/images/cintillo-footer.png")) {
+                        target.src = "/images/cintillo-footer.png";
                       } else {
                         setImgError(true);
                       }

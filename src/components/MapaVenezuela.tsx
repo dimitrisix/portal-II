@@ -3,8 +3,7 @@
 import React, { useSyncExternalStore } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
-// Importamos solo el CSS de forma global
-import "leaflet/dist/leaflet.css";
+// leaflet.css se carga estáticamente desde public/leaflet.css para evitar fallos de Turbopack PostCSS en producción
 
 // Definimos el tipo de datos para nuestras ubicaciones
 export interface Ubicacion {
