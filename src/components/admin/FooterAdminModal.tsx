@@ -212,8 +212,8 @@ export function FooterAdminModal() {
             type="button"
             onClick={() => setLocalVisible(!visible)}
             className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-bold border transition cursor-pointer ${visible
-                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                : "bg-slate-100 text-slate-500 border-slate-300"
+              ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+              : "bg-slate-100 text-slate-500 border-slate-300"
               }`}
           >
             {visible ? <Eye size={16} /> : <EyeOff size={16} />}
@@ -228,8 +228,8 @@ export function FooterAdminModal() {
         {mensaje && (
           <div
             className={`p-3 border rounded-md text-xs font-semibold flex items-center gap-2 ${mensaje.startsWith("Error:")
-                ? "bg-red-50 border-red-200 text-red-700"
-                : "bg-emerald-50 border-emerald-200 text-emerald-800"
+              ? "bg-red-50 border-red-200 text-red-700"
+              : "bg-emerald-50 border-emerald-200 text-emerald-800"
               }`}
           >
             {mensaje.startsWith("Error:") ? (
