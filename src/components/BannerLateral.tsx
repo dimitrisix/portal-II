@@ -31,8 +31,11 @@ export function BannerLateral() {
     setErrorCarga(false);
   }
 
-  // Si no está listo, o la BD dice oculto, o hubo error de carga, no mostramos nada
-  if (!mounted || !bannerLateral?.visible || !bannerLateral?.imagenUrl || errorCarga) {
+  const rawUrl = bannerLateral?.imagenUrl?.trim() || "";
+  const isSample = !rawUrl || rawUrl === "/images/silueta-madre.png";
+
+  // Si no está listo, o la BD dice oculto, o es imagen de muestra, o hubo error de carga, no mostramos nada
+  if (!mounted || !bannerLateral?.visible || isSample || errorCarga) {
     return null;
   }
 
@@ -42,7 +45,7 @@ export function BannerLateral() {
       className="pointer-events-none select-none absolute bottom-0 right-0 z-0 flex justify-end items-end max-w-[280px] sm:max-w-[340px] md:max-w-[380px] lg:max-w-[420px] w-full"
     >
       <img
-        src={bannerLateral.imagenUrl}
+        src={rawUrl}
         alt={bannerLateral.altTexto || "Ilustración Institucional"}
         onError={() => {
           console.error("Fallo de red al cargar la imagen lateral");

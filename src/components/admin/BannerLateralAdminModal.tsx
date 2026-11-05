@@ -30,7 +30,9 @@ export function BannerLateralAdminModal() {
   useEffect(() => {
     if (bannerLateral) {
       const timer = setTimeout(() => {
-        setPreviewUrl(bannerLateral.imagenUrl || "");
+        const raw = bannerLateral.imagenUrl?.trim() || "";
+        const isSample = !raw || raw === "/images/silueta-madre.png";
+        setPreviewUrl(isSample ? "" : raw);
         setVisible(bannerLateral.visible !== false);
       }, 0);
       return () => clearTimeout(timer);
@@ -137,8 +139,6 @@ export function BannerLateralAdminModal() {
                       const target = e.currentTarget;
                       if (target.src.includes("?t=")) {
                         target.src = target.src.split("?t=")[0];
-                      } else if (!target.src.includes("silueta-madre.png")) {
-                        target.src = "/images/silueta-madre.png";
                       }
                     }}
                   />

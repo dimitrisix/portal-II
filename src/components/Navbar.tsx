@@ -9,9 +9,9 @@ function resolverLogoUrl(logoConfig?: { url?: string } | string | null): string 
   let urlExtraida = "";
   if (logoConfig) {
     if (typeof logoConfig === "string") {
-      urlExtraida = logoConfig;
+      urlExtraida = logoConfig.trim();
     } else {
-      urlExtraida = logoConfig.url || "";
+      urlExtraida = (logoConfig.url || "").trim();
     }
   }
 
@@ -26,6 +26,17 @@ function resolverLogoUrl(logoConfig?: { url?: string } | string | null): string 
       }
     }
 
+    const clean = urlExtraida.split("?")[0].trim();
+    // Eliminar muestras por defecto
+    if (
+      clean === "/logo.png" ||
+      clean === "/images/logo-fundaproal.png" ||
+      clean === "/fundaproal-corazon.png" ||
+      clean === "/fundaproal.png"
+    ) {
+      return "";
+    }
+
     if (!urlExtraida.startsWith("/") && !urlExtraida.startsWith("http")) {
       urlExtraida = "/" + urlExtraida;
     }
@@ -33,7 +44,7 @@ function resolverLogoUrl(logoConfig?: { url?: string } | string | null): string 
     return urlExtraida;
   }
 
-  return "/logo.png";
+  return "";
 }
 
 export function Navbar() {
@@ -43,10 +54,9 @@ export function Navbar() {
   const { logo } = useConfig();
   const logoConfigurado = resolverLogoUrl(logo);
 
-  const [fallbackLogo, setFallbackLogo] = useState<string | null>(null);
   const [mostrarTexto, setMostrarTexto] = useState(false);
 
-  const currentLogo = fallbackLogo || logoConfigurado;
+  const currentLogo = logoConfigurado;
 
   return (
     <nav className="bg-[#0c4078] w-full z-50 shadow-md relative">
@@ -57,30 +67,18 @@ export function Navbar() {
               ========================================= */}
           <div className="flex-shrink-0 flex items-center min-w-[150px]">
             <Link href="/" key={logoConfigurado}>
-              {!mostrarTexto ? (
+              {currentLogo && !mostrarTexto ? (
                 <img
                   key={currentLogo}
                   src={currentLogo}
                   alt="Logo FUNDAPROAL"
                   className="h-12 md:h-16 w-auto object-contain transition-opacity duration-300"
                   onError={() => {
-                    if (
-                      currentLogo !== "/images/logo-fundaproal.png" &&
-                      fallbackLogo !== "/images/logo-fundaproal.png"
-                    ) {
-                      setFallbackLogo("/images/logo-fundaproal.png");
-                    } else if (
-                      currentLogo !== "/logo.png" &&
-                      fallbackLogo !== "/logo.png"
-                    ) {
-                      setFallbackLogo("/logo.png");
-                    } else {
-                      setMostrarTexto(true);
-                    }
+                    setMostrarTexto(true);
                   }}
                 />
               ) : (
-                <span className="text-white font-extrabold text-xl md:text-2xl tracking-wider">
+                <span className="text-white font-extrabold text-xl md:text-2xl tracking-wider select-none">
                   FUNDAPROAL
                 </span>
               )}

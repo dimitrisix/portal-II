@@ -28,8 +28,16 @@ export function FooterAdminModal() {
   const [imgError, setImgError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const previewUrl =
-    previewBlobUrl || footerConfig?.imagenUrl || "/images/cintillo-footer.png";
+  const rawConfigUrl = footerConfig?.imagenUrl?.trim() || "";
+  const isSample =
+    !rawConfigUrl ||
+    rawConfigUrl === "/images/cintillo-footer.png" ||
+    rawConfigUrl === "/cintillo.png" ||
+    rawConfigUrl === "/cintillo-fp.jpg" ||
+    rawConfigUrl === "/pie-pagina.png";
+
+  const configuredUrl = isSample ? "" : rawConfigUrl;
+  const previewUrl = previewBlobUrl || configuredUrl;
   const visible =
     localVisible !== null
       ? localVisible
@@ -141,13 +149,8 @@ export function FooterAdminModal() {
                     src={previewUrl}
                     alt="Cintillo actual"
                     className="max-h-full max-w-full object-contain"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      if (!target.src.includes("/images/cintillo-footer.png")) {
-                        target.src = "/images/cintillo-footer.png";
-                      } else {
-                        setImgError(true);
-                      }
+                    onError={() => {
+                      setImgError(true);
                     }}
                   />
                 ) : (

@@ -145,7 +145,7 @@ model ContactoItem {
 
 model BannerLateralConfig {
   id            Int      @id @default(1)
-  imagenUrl     String   @default("/images/silueta-madre.png")
+  imagenUrl     String   @default("")
   altTexto      String   @default("Ilustración Institucional")
   enlaceUrl     String? // Opcional por si se desea hacer clic y redirigir
   visible       Boolean  @default(true)
@@ -156,7 +156,7 @@ model BannerLateralConfig {
 
 model FooterConfig {
   id             Int      @id @default(1)
-  imagenUrl      String   @default("/images/cintillo-footer.png")
+  imagenUrl      String   @default("")
   altTexto       String   @default("Cintillo Institucional")
   direccion      String   @default("Av. Andrés Bello, Edificio Las Fundaciones, Caracas - Venezuela")
   rif            String   @default("G-20002451-8")

@@ -12,7 +12,6 @@ export function Footer() {
     () => true,
     () => false,
   );
-  const [fallbackToDefault, setFallbackToDefault] = useState(false);
   const [isFailed, setIsFailed] = useState(false);
 
   useEffect(() => {
@@ -23,44 +22,46 @@ export function Footer() {
     return null;
   }
 
-  const configuredUrl =
-    footerConfig?.imagenUrl?.trim() || "/images/cintillo-footer.png";
-  const currentSrc = fallbackToDefault
-    ? "/images/cintillo-footer.png"
-    : configuredUrl;
+  const rawUrl = footerConfig?.imagenUrl?.trim() || "";
+  const isSample =
+    !rawUrl ||
+    rawUrl === "/images/cintillo-footer.png" ||
+    rawUrl === "/cintillo.png" ||
+    rawUrl === "/cintillo-fp.jpg" ||
+    rawUrl === "/pie-pagina.png";
 
-  const handleError = () => {
-    if (!fallbackToDefault && configuredUrl !== "/images/cintillo-footer.png") {
-      setFallbackToDefault(true);
-    } else {
-      setIsFailed(true);
-    }
-  };
+  const hasValidImage = Boolean(rawUrl && !isSample && !isFailed);
 
   return (
     <footer className="w-full select-none relative z-10 shrink-0 mt-8 p-0 m-0 border-t border-slate-200/90 bg-white overflow-hidden">
       {/* Contenedor exterior centrado con padding vertical adaptable */}
-      <div className="w-full flex items-center justify-center py-2 sm:py-3 px-2 sm:px-4">
-        {/* Ancho máximo de 1400px sin desbordamiento horizontal */}
-        <div className="w-full max-w-[1400px] min-h-[56px] sm:min-h-[64px] md:h-20 flex items-center justify-center">
-          {!isFailed ? (
+      <div className="w-full flex items-center justify-center py-4 px-4 sm:px-6">
+        <div className="w-full max-w-[1400px] flex items-center justify-center">
+          {hasValidImage ? (
             <img
-              key={configuredUrl}
-              src={currentSrc}
+              key={rawUrl}
+              src={rawUrl}
               alt={
                 footerConfig?.altTexto ||
                 "Cintillo Institucional FUNDAPROAL - MINPPAL"
               }
               /* En móvil preserva proporción (object-contain); en pantallas grandes llena el ancho (md:object-fill) */
-              className="w-full h-12 sm:h-14 md:h-full object-contain md:object-fill block transition-opacity duration-300"
+              className="w-full h-12 sm:h-14 md:h-20 object-contain md:object-fill block transition-opacity duration-300"
               loading="lazy"
-              onError={handleError}
+              onError={() => setIsFailed(true)}
             />
           ) : (
-            <div className="w-full py-3 flex items-center justify-center text-center">
-              <p className="text-xs sm:text-sm text-slate-400 font-medium italic">
-                No hay pie de página definido
+            <div className="w-full py-2 flex flex-col items-center justify-center text-center space-y-1">
+              <p className="text-xs sm:text-sm text-slate-700 font-semibold tracking-wide">
+                {footerConfig?.textoCopyright ||
+                  "Fundación Propatria 2000 / FUNDAPROAL. Todos los derechos reservados."}
               </p>
+              {footerConfig?.direccion && (
+                <p className="text-[11px] sm:text-xs text-slate-500">
+                  {footerConfig.direccion}
+                  {footerConfig?.rif ? ` • RIF: ${footerConfig.rif}` : ""}
+                </p>
+              )}
             </div>
           )}
         </div>

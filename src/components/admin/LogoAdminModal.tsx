@@ -62,7 +62,15 @@ export function LogoAdminModal() {
     }
   };
 
-  const imagenActual = preview || logo.url;
+  const rawLogo = logo.url ? logo.url.split("?")[0].trim() : "";
+  const isSample =
+    !rawLogo ||
+    rawLogo === "/logo.png" ||
+    rawLogo === "/images/logo-fundaproal.png" ||
+    rawLogo === "/fundaproal-corazon.png" ||
+    rawLogo === "/fundaproal.png";
+
+  const imagenActual = preview || (isSample ? null : logo.url);
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 w-full max-w-lg text-left">
@@ -84,19 +92,18 @@ export function LogoAdminModal() {
                 src={imagenActual}
                 alt="Vista previa del logo"
                 className="max-h-20 w-auto max-w-full object-contain filter drop-shadow-sm"
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  if (!target.src.includes("/images/logo-fundaproal.png")) {
-                    target.src = "/images/logo-fundaproal.png";
-                  } else {
-                    setLogoError(true);
-                  }
+                onError={() => {
+                  setLogoError(true);
                 }}
               />
             ) : (
-              <div className="flex flex-col items-center justify-center text-slate-400 gap-1 text-xs">
+              <div className="flex flex-col items-center justify-center text-slate-400 gap-1 text-xs text-center">
                 <ImageIcon size={24} />
-                <span>Logo Institucional ({imagenActual ? "Cargado" : "Por defecto"})</span>
+                <span>
+                  {preview
+                    ? "Nuevo archivo seleccionado"
+                    : "Sin logotipo cargado (en el portal se muestra texto 'FUNDAPROAL')"}
+                </span>
               </div>
             )}
           </div>

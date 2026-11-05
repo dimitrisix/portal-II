@@ -19,13 +19,21 @@ export async function GET() {
       banner = await prisma.bannerLateralConfig.create({
         data: {
           id: 1,
-          imagenUrl: "/images/silueta-madre.png",
-          visible: true,
+          imagenUrl: "",
+          visible: false,
         },
       });
     }
 
-    return NextResponse.json(banner, {
+    const isSample =
+      !banner.imagenUrl ||
+      banner.imagenUrl.trim() === "/images/silueta-madre.png";
+
+    const sanitizedBanner = isSample
+      ? { ...banner, imagenUrl: "", visible: false }
+      : banner;
+
+    return NextResponse.json(sanitizedBanner, {
       headers: {
         "Cache-Control":
           "no-store, no-cache, must-revalidate, proxy-revalidate",

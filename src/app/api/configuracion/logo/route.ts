@@ -7,7 +7,19 @@ import { logAction } from "@/app/dashboard/auditoria/logger";
 import { notifyPortalChange } from "@/lib/portal-sync";
 
 const CLAVE_CONFIG = "LOGO_PORTAL_URL";
-const LOGO_DEFECTO = "/logo.png";
+const LOGO_DEFECTO = "";
+
+function isSampleLogo(url?: string | null): boolean {
+  if (!url) return true;
+  const clean = url.trim();
+  return (
+    clean === "" ||
+    clean === "/logo.png" ||
+    clean === "/images/logo-fundaproal.png" ||
+    clean === "/fundaproal-corazon.png" ||
+    clean === "/fundaproal.png"
+  );
+}
 
 // GET: Obtener el logo desde la base de datos (público)
 export async function GET() {
@@ -16,8 +28,11 @@ export async function GET() {
       where: { clave: CLAVE_CONFIG },
     });
 
+    const valor = registro?.valor?.trim() || "";
+    const resolvedUrl = isSampleLogo(valor) ? LOGO_DEFECTO : valor;
+
     return NextResponse.json(
-      { url: registro?.valor || LOGO_DEFECTO },
+      { url: resolvedUrl },
       {
         headers: {
           "Cache-Control":

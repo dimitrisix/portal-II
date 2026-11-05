@@ -17,7 +17,7 @@ interface FooterRequestBody {
 }
 
 const DEFECTO = {
-  imagenUrl: "/images/cintillo-footer.png",
+  imagenUrl: "",
   altTexto: "Cintillo Institucional",
   direccion: "Av. Andrés Bello, Edificio Las Fundaciones, Caracas - Venezuela",
   rif: "G-20002451-8",
@@ -25,6 +25,18 @@ const DEFECTO = {
     "Fundación Propatria 2000 / FUNDAPROAL. Todos los derechos reservados.",
   visible: true,
 };
+
+function isSampleFooter(url?: string | null): boolean {
+  if (!url) return true;
+  const clean = url.trim();
+  return (
+    clean === "" ||
+    clean === "/images/cintillo-footer.png" ||
+    clean === "/cintillo.png" ||
+    clean === "/cintillo-fp.jpg" ||
+    clean === "/pie-pagina.png"
+  );
+}
 
 export async function GET() {
   try {
@@ -38,7 +50,11 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json(footer, {
+    const sanitizedFooter = isSampleFooter(footer.imagenUrl)
+      ? { ...footer, imagenUrl: "" }
+      : footer;
+
+    return NextResponse.json(sanitizedFooter, {
       status: 200,
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",

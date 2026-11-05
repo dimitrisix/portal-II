@@ -106,14 +106,14 @@ export function ConfigProvider({
   );
   const [bannerLateral, setBannerLateral] = useState<BannerLateralData>(
     initialData?.bannerLateral || {
-      imagenUrl: "/images/silueta-madre.png",
+      imagenUrl: "",
       altTexto: "Ilustración Institucional",
-      visible: true,
+      visible: false,
     },
   );
   const [footerConfig, setFooterConfig] = useState<FooterConfigData>(
     initialData?.footerConfig || {
-      imagenUrl: "/images/cintillo-footer.png",
+      imagenUrl: "",
       altTexto: "Cintillo Institucional",
       direccion:
         "Av. Andrés Bello, Edificio Las Fundaciones, Caracas - Venezuela",
@@ -161,8 +161,16 @@ export function ConfigProvider({
       });
       if (res.ok) {
         const data = await res.json();
-        if (data?.url) {
-          setLogo({ url: `${data.url.split("?")[0]}?t=${Date.now()}` });
+        if (data) {
+          const isSample =
+            !data.url ||
+            data.url === "/logo.png" ||
+            data.url === "/images/logo-fundaproal.png" ||
+            data.url === "/fundaproal-corazon.png" ||
+            data.url === "/fundaproal.png";
+          setLogo({
+            url: isSample ? "" : `${data.url.split("?")[0]}?t=${Date.now()}`,
+          });
         }
       }
     } catch {
@@ -279,7 +287,16 @@ export function ConfigProvider({
       );
       if (res.ok) {
         const data = await res.json();
-        if (data && data.imagenUrl) setBannerLateral(data);
+        if (data) {
+          const isSample =
+            !data.imagenUrl ||
+            data.imagenUrl.trim() === "/images/silueta-madre.png";
+          setBannerLateral(
+            isSample
+              ? { ...data, imagenUrl: "", visible: false }
+              : data,
+          );
+        }
       }
     } catch {
       // Ignorar errores transitorios
@@ -298,7 +315,19 @@ export function ConfigProvider({
       });
       if (res.ok) {
         const data = await res.json();
-        if (data && data.imagenUrl) setFooterConfig(data);
+        if (data) {
+          const isSample =
+            !data.imagenUrl ||
+            data.imagenUrl.trim() === "/images/cintillo-footer.png" ||
+            data.imagenUrl.trim() === "/cintillo.png" ||
+            data.imagenUrl.trim() === "/cintillo-fp.jpg" ||
+            data.imagenUrl.trim() === "/pie-pagina.png";
+          setFooterConfig(
+            isSample
+              ? { ...data, imagenUrl: "" }
+              : data,
+          );
+        }
       }
     } catch {
       // Ignorar errores transitorios

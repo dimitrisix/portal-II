@@ -74,30 +74,62 @@ export async function getPortalInitialData() {
 
     const revistaPrincipal = revistasList && revistasList.length > 0 ? revistasList[0] : defaultRevista;
 
+    // Sanitizar logotipo: eliminar muestras por defecto
+    const rawLogoUrl = (configMap["LOGO_PORTAL_URL"] || configMap["logoUrl"] || "").trim();
+    const isSampleLogo =
+      !rawLogoUrl ||
+      rawLogoUrl === "/logo.png" ||
+      rawLogoUrl === "/images/logo-fundaproal.png" ||
+      rawLogoUrl === "/fundaproal-corazon.png" ||
+      rawLogoUrl === "/fundaproal.png";
+
+    // Sanitizar banner lateral: eliminar muestra de silueta
+    const rawBannerUrl = bannerLateral?.imagenUrl?.trim() || "";
+    const isSampleBanner =
+      !rawBannerUrl ||
+      rawBannerUrl === "/images/silueta-madre.png";
+
+    const resolvedBannerLateral =
+      bannerLateral && !isSampleBanner && bannerLateral.visible !== false
+        ? bannerLateral
+        : {
+            imagenUrl: "",
+            altTexto: "Ilustración Institucional",
+            visible: false,
+          };
+
+    // Sanitizar footer: eliminar muestra de cintillo
+    const rawFooterUrl = footerConfig?.imagenUrl?.trim() || "";
+    const isSampleFooter =
+      !rawFooterUrl ||
+      rawFooterUrl === "/images/cintillo-footer.png" ||
+      rawFooterUrl === "/cintillo.png" ||
+      rawFooterUrl === "/cintillo-fp.jpg" ||
+      rawFooterUrl === "/pie-pagina.png";
+
+    const resolvedFooter = {
+      imagenUrl: isSampleFooter ? "" : rawFooterUrl,
+      altTexto: footerConfig?.altTexto || "Cintillo Institucional",
+      direccion:
+        footerConfig?.direccion ||
+        "Av. Andrés Bello, Edificio Las Fundaciones, Caracas - Venezuela",
+      rif: footerConfig?.rif || "G-20002451-8",
+      textoCopyright:
+        footerConfig?.textoCopyright ||
+        "Fundación Propatria 2000 / FUNDAPROAL. Todos los derechos reservados.",
+      visible: footerConfig ? footerConfig.visible !== false : true,
+    };
+
     return {
       logo: {
-        url:
-          configMap["LOGO_PORTAL_URL"] || configMap["logoUrl"] || "/logo.png",
+        url: isSampleLogo ? "" : rawLogoUrl,
       },
       slides: slides || [],
       programas: programas || [],
       videosPrensa: videosPrensa || [],
       contactosItems: contactosItems || [],
-      bannerLateral: bannerLateral || {
-        imagenUrl: "/images/silueta-madre.png",
-        altTexto: "Ilustración Institucional",
-        visible: true,
-      },
-      footerConfig: footerConfig || {
-        imagenUrl: "/images/cintillo-footer.png",
-        altTexto: "Cintillo Institucional",
-        direccion:
-          "Av. Andrés Bello, Edificio Las Fundaciones, Caracas - Venezuela",
-        rif: "G-20002451-8",
-        textoCopyright:
-          "Fundación Propatria 2000 / FUNDAPROAL. Todos los derechos reservados.",
-        visible: true,
-      },
+      bannerLateral: resolvedBannerLateral,
+      footerConfig: resolvedFooter,
       revista: revistaPrincipal,
       revistas: revistasList || [],
     };
