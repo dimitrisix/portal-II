@@ -32,6 +32,7 @@ export function LogoAdminModal() {
 
     setLoading(true);
     setMensaje(null);
+    setLogoError(false);
 
     const formData = new FormData();
     formData.append("logo", selectedFile);
@@ -51,8 +52,13 @@ export function LogoAdminModal() {
       setMensaje("¡Logo actualizado con éxito!");
       await recargarLogo();
 
-      setPreview(null);
+      setLogoError(false);
       setSelectedFile(null);
+      // Mantenemos la previsualización activa con la URL confirmada del servidor + timestamp anticaché
+      const freshUrl = data.logo?.url
+        ? `${data.logo.url}?t=${Date.now()}`
+        : null;
+      setPreview(freshUrl);
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Ocurrió un error al subir el logo";
@@ -89,11 +95,17 @@ export function LogoAdminModal() {
           <div className="h-28 w-full bg-slate-50 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center p-4">
             {imagenActual && !logoError ? (
               <img
+                key={imagenActual}
                 src={imagenActual}
                 alt="Vista previa del logo"
                 className="max-h-20 w-auto max-w-full object-contain filter drop-shadow-sm"
-                onError={() => {
-                  setLogoError(true);
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (!target.src.includes("?retry=")) {
+                    target.src = target.src.split("?")[0] + "?retry=" + Date.now();
+                  } else {
+                    setLogoError(true);
+                  }
                 }}
               />
             ) : (

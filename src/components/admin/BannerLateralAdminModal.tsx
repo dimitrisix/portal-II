@@ -96,7 +96,10 @@ export function BannerLateralAdminModal() {
 
       // Limpiar UI tras el guardado exitoso
       setArchivoSeleccionado(null);
-      setPreviewUrl(responseData.banner.imagenUrl);
+      const freshUrl = responseData.banner?.imagenUrl
+        ? `${responseData.banner.imagenUrl}?t=${Date.now()}`
+        : "";
+      setPreviewUrl(freshUrl);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
       setMensaje("¡Imagen actualizada y sincronizada en vivo con éxito!");

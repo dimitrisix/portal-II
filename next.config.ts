@@ -149,9 +149,6 @@ const nextConfig: NextConfig = {
   // Ocultar source maps en producción para impedir ingeniería inversa y clonación de código
   productionBrowserSourceMaps: false,
 
-  // Genera el empaquetado optimizado e independiente para producción en Linux (crea .next/standalone/server.js)
-  output: "standalone",
-
   // IPs y orígenes permitidos en desarrollo
   allowedDevOrigins: [
     "192.168.0.18",
@@ -180,14 +177,6 @@ const nextConfig: NextConfig = {
     },
   },
 
-  async rewrites() {
-    return [
-      {
-        source: "/uploads/:path*",
-        destination: "/api/uploads/:path*",
-      },
-    ];
-  },
 
   async headers() {
     return [

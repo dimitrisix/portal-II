@@ -16,6 +16,18 @@ const ALLOWED_MIME_TYPES: Record<string, string> = {
   "image/svg+xml": ".svg",
 };
 
+export function getAllCandidateBaseDirs(): string[] {
+  const cwd = process.cwd();
+  const list = [
+    cwd,
+    "/var/www/portal",
+    "/var/www/portal-II",
+    "/home/tecnologia/portal",
+    "/home/tecnologia/portal-II",
+  ];
+  return Array.from(new Set(list));
+}
+
 /**
  * Obtiene el directorio base de la aplicación.
  * Prioriza el directorio de trabajo del proceso en ejecución (process.cwd()) si contiene 'public',
@@ -65,7 +77,8 @@ export async function ensureUploadDirectories(subfolder: string = ""): Promise<{
     cleanSubfolder,
   );
 
-  const dirsToEnsure = [
+  const candidateBases = getAllCandidateBaseDirs();
+  const dirsToEnsure: string[] = [
     path.join(baseDir, "public", "uploads"),
     primaryDir,
     path.join(baseDir, "uploads"),
@@ -74,7 +87,22 @@ export async function ensureUploadDirectories(subfolder: string = ""): Promise<{
     standaloneDir,
   ];
 
-  for (const dir of dirsToEnsure) {
+  for (const cBase of candidateBases) {
+    if (fsSync.existsSync(cBase)) {
+      dirsToEnsure.push(
+        path.join(cBase, "public", "uploads"),
+        path.join(cBase, "public", "uploads", cleanSubfolder),
+        path.join(cBase, "uploads"),
+        path.join(cBase, "uploads", cleanSubfolder),
+        path.join(cBase, ".next", "standalone", "public", "uploads"),
+        path.join(cBase, ".next", "standalone", "public", "uploads", cleanSubfolder),
+      );
+    }
+  }
+
+  const uniqueDirs = Array.from(new Set(dirsToEnsure));
+
+  for (const dir of uniqueDirs) {
     try {
       await fs.mkdir(dir, { recursive: true, mode: 0o777 });
       await fs.chmod(dir, 0o777);
@@ -83,15 +111,17 @@ export async function ensureUploadDirectories(subfolder: string = ""): Promise<{
     }
   }
 
-  // En Linux, si no existe el enlace simbólico de uploads en la raíz, crearlo
+  // En Linux, asegurar symlink en los directorios base existentes
   if (process.platform !== "win32") {
-    try {
-      const publicUploads = path.join(baseDir, "public", "uploads");
-      const rootUploads = path.join(baseDir, "uploads");
-      if (fsSync.existsSync(publicUploads) && !fsSync.existsSync(rootUploads)) {
-        fsSync.symlinkSync(publicUploads, rootUploads, "dir");
-      }
-    } catch {}
+    for (const cBase of candidateBases) {
+      try {
+        const publicUploads = path.join(cBase, "public", "uploads");
+        const rootUploads = path.join(cBase, "uploads");
+        if (fsSync.existsSync(publicUploads) && !fsSync.existsSync(rootUploads)) {
+          fsSync.symlinkSync(publicUploads, rootUploads, "dir");
+        }
+      } catch {}
+    }
   }
 
   return { primaryDir, rootUploadDir, standaloneDir };
@@ -192,14 +222,10 @@ export async function processAndSaveImage(
   const uniqueName = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}${safeExtension}`;
 
   let primaryDir: string;
-  let rootUploadDir: string;
-  let standaloneDir: string;
 
   try {
     const dirs = await ensureUploadDirectories(cleanSubfolder);
     primaryDir = dirs.primaryDir;
-    rootUploadDir = dirs.rootUploadDir;
-    standaloneDir = dirs.standaloneDir;
   } catch (err: unknown) {
     const e = err as { code?: string };
     if (e?.code === "EACCES") {
@@ -213,9 +239,6 @@ export async function processAndSaveImage(
   }
 
   const primaryFilePath = path.join(primaryDir, uniqueName);
-  const rootFilePath = path.join(rootUploadDir, uniqueName);
-  const standaloneFilePath = path.join(standaloneDir, uniqueName);
-
   let primaryWritten = false;
 
   // 1. Escribir en almacenamiento principal (public/uploads/...)
@@ -229,19 +252,30 @@ export async function processAndSaveImage(
     console.error("[UPLOAD WRITE ERROR primaryFilePath]:", err);
   }
 
-  // 2. Escribir copia en raíz de uploads (para Nginx con root /var/www/portal)
-  try {
-    await fs.writeFile(rootFilePath, buffer);
-    await fs.chmod(rootFilePath, 0o666);
-  } catch {}
+  // 2. Replicar de inmediato en todas las posibles ubicaciones del servidor Linux (Nginx y Node)
+  const candidateBases = getAllCandidateBaseDirs();
+  for (const cBase of candidateBases) {
+    const targetPaths = [
+      path.join(cBase, "public", "uploads", cleanSubfolder, uniqueName),
+      path.join(cBase, "uploads", cleanSubfolder, uniqueName),
+      path.join(cBase, ".next", "standalone", "public", "uploads", cleanSubfolder, uniqueName),
+    ];
 
-  // 3. Escribir copia en standalone
-  try {
-    await fs.writeFile(standaloneFilePath, buffer);
-    await fs.chmod(standaloneFilePath, 0o666);
-  } catch {}
+    for (const target of targetPaths) {
+      if (target !== primaryFilePath) {
+        try {
+          const parent = path.dirname(target);
+          if (fsSync.existsSync(parent)) {
+            await fs.writeFile(target, buffer);
+            await fs.chmod(target, 0o666);
+            primaryWritten = true;
+          }
+        } catch {}
+      }
+    }
+  }
 
-  if (!primaryWritten && !fsSync.existsSync(rootFilePath)) {
+  if (!primaryWritten) {
     return {
       success: false,
       error:
@@ -322,14 +356,10 @@ export async function processAndSavePdf(
   const uniqueName = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}.pdf`;
 
   let primaryDir: string;
-  let rootUploadDir: string;
-  let standaloneDir: string;
 
   try {
     const dirs = await ensureUploadDirectories(cleanSubfolder);
     primaryDir = dirs.primaryDir;
-    rootUploadDir = dirs.rootUploadDir;
-    standaloneDir = dirs.standaloneDir;
   } catch (err: unknown) {
     const e = err as { code?: string };
     if (e?.code === "EACCES") {
@@ -343,8 +373,6 @@ export async function processAndSavePdf(
   }
 
   const primaryFilePath = path.join(primaryDir, uniqueName);
-  const rootFilePath = path.join(rootUploadDir, uniqueName);
-  const standaloneFilePath = path.join(standaloneDir, uniqueName);
 
   // Guardado eficiente por Streaming por fragmentos:
   // Escribe directamente al disco sin saturar la memoria RAM aun en archivos de 400MB o más
@@ -358,17 +386,26 @@ export async function processAndSavePdf(
     await fs.chmod(primaryFilePath, 0o666);
   } catch {}
 
-  // Copia hacia la carpeta raíz de uploads (para Nginx)
-  try {
-    await fs.copyFile(primaryFilePath, rootFilePath);
-    await fs.chmod(rootFilePath, 0o666);
-  } catch {}
-
-  // Clonación directa hacia la carpeta standalone
-  try {
-    await fs.copyFile(primaryFilePath, standaloneFilePath);
-    await fs.chmod(standaloneFilePath, 0o666);
-  } catch {}
+  // Replicar en todas las rutas candidatas (Nginx y Node)
+  const candidateBases = getAllCandidateBaseDirs();
+  for (const cBase of candidateBases) {
+    const targetPaths = [
+      path.join(cBase, "public", "uploads", cleanSubfolder, uniqueName),
+      path.join(cBase, "uploads", cleanSubfolder, uniqueName),
+      path.join(cBase, ".next", "standalone", "public", "uploads", cleanSubfolder, uniqueName),
+    ];
+    for (const target of targetPaths) {
+      if (target !== primaryFilePath) {
+        try {
+          const parent = path.dirname(target);
+          if (fsSync.existsSync(parent)) {
+            await fs.copyFile(primaryFilePath, target);
+            await fs.chmod(target, 0o666);
+          }
+        } catch {}
+      }
+    }
+  }
 
   const publicUrl = cleanSubfolder
     ? `/uploads/${cleanSubfolder}/${uniqueName}`
@@ -402,39 +439,17 @@ export async function safeDeleteUploadedFile(
   const fileName = path.basename(publicUrl);
   if (!fileName || fileName.includes("..")) return;
 
-  const baseDir = getBaseUploadDir();
-  const primaryFilePath = path.join(
-    baseDir,
-    "public",
-    "uploads",
-    cleanSubfolder,
-    fileName,
-  );
-  const rootFilePath = path.join(
-    baseDir,
-    "uploads",
-    cleanSubfolder,
-    fileName,
-  );
-  const standaloneFilePath = path.join(
-    baseDir,
-    ".next",
-    "standalone",
-    "public",
-    "uploads",
-    cleanSubfolder,
-    fileName,
-  );
-
-  try {
-    await fs.unlink(primaryFilePath);
-  } catch {}
-
-  try {
-    await fs.unlink(rootFilePath);
-  } catch {}
-
-  try {
-    await fs.unlink(standaloneFilePath);
-  } catch {}
+  const candidateBases = getAllCandidateBaseDirs();
+  for (const cBase of candidateBases) {
+    const pathsToDelete = [
+      path.join(cBase, "public", "uploads", cleanSubfolder, fileName),
+      path.join(cBase, "uploads", cleanSubfolder, fileName),
+      path.join(cBase, ".next", "standalone", "public", "uploads", cleanSubfolder, fileName),
+    ];
+    for (const p of pathsToDelete) {
+      try {
+        await fs.unlink(p);
+      } catch {}
+    }
+  }
 }

@@ -111,7 +111,8 @@ export function FooterAdminModal() {
       notificarCambioFooter();
 
       setArchivoSeleccionado(null);
-      setPreviewBlobUrl(null);
+      const freshUrl = finalImageUrl ? `${finalImageUrl}?t=${Date.now()}` : null;
+      setPreviewBlobUrl(freshUrl);
       setImgError(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
       setMensaje("¡Pie de página actualizado y sincronizado en vivo!");
@@ -146,11 +147,17 @@ export function FooterAdminModal() {
               <div className="w-full sm:max-w-md h-20 bg-white border border-slate-200 rounded-lg p-2 flex items-center justify-center overflow-hidden">
                 {!imgError ? (
                   <img
+                    key={previewUrl}
                     src={previewUrl}
                     alt="Cintillo actual"
                     className="max-h-full max-w-full object-contain"
-                    onError={() => {
-                      setImgError(true);
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (!target.src.includes("?retry=")) {
+                        target.src = target.src.split("?")[0] + "?retry=" + Date.now();
+                      } else {
+                        setImgError(true);
+                      }
                     }}
                   />
                 ) : (

@@ -13,25 +13,33 @@ export default function RootError({
   const isChunkError =
     error?.message?.toLowerCase().includes("failed to load chunk") ||
     error?.message?.toLowerCase().includes("chunkloaderror") ||
-    error?.name === "ChunkLoadError";
+    error?.name === "ChunkLoadError" ||
+    (typeof error?.message === "string" &&
+      /chunk.*failed|failed.*chunk/i.test(error.message));
 
   useEffect(() => {
     console.error("[Root Error Boundary]:", error);
 
-    // Auto-recuperación transparente: si es un chunk obsoleto por despliegue de nueva versión,
-    // recargar automáticamente la página una sola vez para obtener el nuevo manifiesto de assets.
+    // Auto-recuperación transparente: si es un chunk desactualizado por nueva compilación,
+    // recargar automáticamente con parámetro único para limpiar la caché de scripts
     if (isChunkError && typeof window !== "undefined") {
-      const reloadKey = "fundaproal_chunk_reload_" + (error.message || "");
-      if (!sessionStorage.getItem(reloadKey)) {
-        sessionStorage.setItem(reloadKey, "true");
-        window.location.reload();
+      const reloadKey = "fundaproal_chunk_reload";
+      const count = parseInt(sessionStorage.getItem(reloadKey) || "0", 10);
+      if (count < 2) {
+        sessionStorage.setItem(reloadKey, String(count + 1));
+        window.location.href =
+          window.location.pathname + "?_t=" + Date.now();
       }
     }
   }, [error, isChunkError]);
 
   const handleRetry = () => {
-    if (isChunkError && typeof window !== "undefined") {
-      window.location.reload();
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.removeItem("fundaproal_chunk_reload");
+      } catch {}
+      window.location.href =
+        window.location.pathname + "?_t=" + Date.now();
     } else {
       reset();
     }
@@ -39,7 +47,11 @@ export default function RootError({
 
   const handleGoHome = () => {
     if (typeof window !== "undefined") {
-      window.location.href = "/";
+      try {
+        sessionStorage.removeItem("fundaproal_chunk_reload");
+      } catch {}
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.href = "/?_t=" + Date.now();
     }
   };
 
