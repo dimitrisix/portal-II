@@ -102,7 +102,7 @@ export function LogoAdminModal() {
                 <span>
                   {preview
                     ? "Nuevo archivo seleccionado"
-                    : "Sin logotipo cargado (en el portal se muestra texto 'FUNDAPROAL')"}
+                    : "Sin logotipo cargado (espacio vacío en el portal)"}
                 </span>
               </div>
             )}

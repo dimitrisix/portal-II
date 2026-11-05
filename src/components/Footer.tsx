@@ -51,17 +51,10 @@ export function Footer() {
               onError={() => setIsFailed(true)}
             />
           ) : (
-            <div className="w-full py-2 flex flex-col items-center justify-center text-center space-y-1">
-              <p className="text-xs sm:text-sm text-slate-700 font-semibold tracking-wide">
-                {footerConfig?.textoCopyright ||
-                  "Fundación Propatria 2000 / FUNDAPROAL. Todos los derechos reservados."}
-              </p>
-              {footerConfig?.direccion && (
-                <p className="text-[11px] sm:text-xs text-slate-500">
-                  {footerConfig.direccion}
-                  {footerConfig?.rif ? ` • RIF: ${footerConfig.rif}` : ""}
-                </p>
-              )}
+            <div className="w-full py-2 flex items-center justify-center text-center">
+              <span className="text-xs sm:text-sm font-bold text-slate-700 uppercase tracking-widest select-none">
+                FUNDAPROAL
+              </span>
             </div>
           )}
         </div>
